@@ -23,7 +23,7 @@ const VideoChat = () => {
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
     const [isInitiator, setIsInitiator] = useState(false);
-    const [callStarted, setCallStarted] = useState(false); // Yeni durum: Çağrı başladı mı?
+    const [callStarted, setCallStarted] = useState(false);
 
     const myVideo = useRef();
     const userVideo = useRef();
@@ -36,17 +36,25 @@ const VideoChat = () => {
             setRoomFull(true);
         });
 
+        // Sunucudan gelen room-users eventini işleyin
+        socket.on('room-users', (users) => {
+            debugger;
+            console.log("Odadaki kullanıcılar:", users);
+            if (users.length === 1) {
+                setIsInitiator(true); // İlk kullanıcıya "Başlat" tuşunu gösterir
+            } else {
+                setReceivingCall(true); // İkinci kullanıcıya "Katıl" tuşunu gösterir
+            }
+        });
+
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
         }).then((stream) => {
             setStream(stream);
-            myVideo.current.srcObject = stream;
-        });
-
-        socket.on('user-connected', () => {
-            // İkinci kullanıcı odaya girdiğinde "Katıl" tuşunu görmesi için receivingCall güncellenir
-            setReceivingCall(true);
+            if (myVideo.current) {
+                myVideo.current.srcObject = stream;
+            }
         });
 
         socket.on('offer', (data) => {
@@ -73,8 +81,7 @@ const VideoChat = () => {
     }, [roomId]);
 
     const initiateCall = () => {
-        setIsInitiator(true); // İlk kullanıcı olarak ayarlama
-        setCallStarted(true); // Çağrının başlatıldığını işaretle
+        setCallStarted(true);
         const peer = new Peer({ initiator: true, trickle: true, stream });
 
         peer.on('signal', (data) => {
@@ -82,7 +89,9 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            userVideo.current.srcObject = userStream;
+            if (userVideo.current) {
+                userVideo.current.srcObject = userStream;
+            }
         });
 
         peer.on('iceCandidate', (candidate) => {
@@ -94,7 +103,7 @@ const VideoChat = () => {
 
     const answerCall = () => {
         setCallAccepted(true);
-        setCallStarted(true); // İkinci kullanıcı katıldığında çağrının başlatıldığını işaretle
+        setCallStarted(true);
         const peer = new Peer({ initiator: false, trickle: true, stream });
 
         peer.on('signal', (data) => {
@@ -102,7 +111,9 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            userVideo.current.srcObject = userStream;
+            if (userVideo.current) {
+                userVideo.current.srcObject = userStream;
+            }
         });
 
         peer.on('iceCandidate', (candidate) => {
@@ -132,7 +143,7 @@ const VideoChat = () => {
     }
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
                 <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
                     {callStarted && cameraEnabled ? (
@@ -161,7 +172,8 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {!callStarted && (
+                {/* Butonları gösteren koşullu render */}
+                {!callStarted && !callAccepted && (
                     isInitiator ? (
                         <Button variant="contained" color="primary" onClick={initiateCall}>
                             Başlat
