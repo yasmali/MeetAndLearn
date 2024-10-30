@@ -26,10 +26,7 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        // Odaya katıl
-        socket.emit('join-room', roomId);
-
-        // Kullanıcıya video akışını başlat
+        // Kullanıcıdan medya akışını al
         navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: true
@@ -38,18 +35,21 @@ const VideoChat = () => {
             myVideo.current.srcObject = stream;
         });
 
-        // Odaya başka bir kullanıcı katıldığında
+        // Odaya katıl
+        socket.emit('join-room', roomId);
+
+        // Başka bir kullanıcı bağlandığında
         socket.on('user-connected', () => {
             setUserConnected(true);
         });
 
-        // Teklif sinyali alındığında
+        // Teklif (offer) sinyali alındığında
         socket.on('offer', (signal) => {
             setReceivingCall(true);
             setCallerSignal(signal);
         });
 
-        // Cevap sinyali alındığında
+        // Cevap (answer) sinyali alındığında
         socket.on('answer', (signal) => {
             setCallAccepted(true);
             connectionRef.current.signal(signal);
@@ -57,12 +57,14 @@ const VideoChat = () => {
 
         // ICE aday sinyali alındığında
         socket.on('ice-candidate', (candidate) => {
-            connectionRef.current.signal(candidate);
+            if (connectionRef.current) {
+                connectionRef.current.signal(candidate);
+            }
         });
     }, [roomId]);
 
     const initiateCall = () => {
-        const peer = new Peer({ initiator: true, trickle: false, stream: stream });
+        const peer = new Peer({ initiator: true, trickle: false, stream });
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
@@ -72,8 +74,13 @@ const VideoChat = () => {
             userVideo.current.srcObject = userStream;
         });
 
-        peer.on('ice-candidate', (candidate) => {
-            socket.emit('ice-candidate', { candidate, roomId });
+        peer.on('error', (err) => {
+            console.error("Peer bağlantı hatası:", err);
+        });
+
+        peer.on('close', () => {
+            console.log("Peer bağlantısı kapatıldı.");
+            userVideo.current.srcObject = null;
         });
 
         connectionRef.current = peer;
@@ -82,7 +89,7 @@ const VideoChat = () => {
 
     const answerCall = () => {
         setCallAccepted(true);
-        const peer = new Peer({ initiator: false, trickle: false, stream: stream });
+        const peer = new Peer({ initiator: false, trickle: false, stream });
 
         peer.on('signal', (data) => {
             socket.emit('answer', { signal: data, roomId });
@@ -92,8 +99,13 @@ const VideoChat = () => {
             userVideo.current.srcObject = userStream;
         });
 
-        peer.on('ice-candidate', (candidate) => {
-            socket.emit('ice-candidate', { candidate, roomId });
+        peer.on('error', (err) => {
+            console.error("Peer bağlantı hatası:", err);
+        });
+
+        peer.on('close', () => {
+            console.log("Peer bağlantısı kapatıldı.");
+            userVideo.current.srcObject = null;
         });
 
         peer.signal(callerSignal);
