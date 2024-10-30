@@ -25,6 +25,11 @@ const io = new Server(server, {
     }
 });
 
+// Ana sayfa (/) için bir yanıt ekle
+app.get('/', (req, res) => {
+    res.send("Meet and Learn uygulaması Socket.io üzerinden çalışıyor!");
+});
+
 io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
 
