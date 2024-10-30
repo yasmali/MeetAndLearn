@@ -28,7 +28,6 @@ const VideoChat = () => {
     useEffect(() => {
         // Odaya katıl
         socket.emit('join-room', roomId);
-        alert(`Odaya katıldı: ${roomId}`);
 
         // Kullanıcıya video akışını başlat
         navigator.mediaDevices.getUserMedia({
@@ -37,33 +36,28 @@ const VideoChat = () => {
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
-            alert("Video ve ses akışı başlatıldı.");
         });
 
         // Odaya başka bir kullanıcı katıldığında
         socket.on('user-connected', () => {
             setUserConnected(true);
-            alert("Bir kullanıcı odaya katıldı. Katılma durumu aktif.");
         });
 
         // Teklif sinyali alındığında
         socket.on('offer', (signal) => {
             setReceivingCall(true);
             setCallerSignal(signal);
-            alert("Teklif (offer) sinyali alındı.");
         });
 
         // Cevap sinyali alındığında
         socket.on('answer', (signal) => {
             setCallAccepted(true);
             connectionRef.current.signal(signal);
-            alert("Cevap (answer) sinyali alındı ve bağlantı kabul edildi.");
         });
 
         // ICE aday sinyali alındığında
         socket.on('ice-candidate', (candidate) => {
             connectionRef.current.signal(candidate);
-            alert("ICE candidate sinyali alındı.");
         });
     }, [roomId]);
 
@@ -72,17 +66,14 @@ const VideoChat = () => {
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
-            alert("Teklif (offer) sinyali gönderildi.");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
-            alert("Karşı tarafın video akışı alındı.");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
-            alert("ICE candidate sinyali gönderildi.");
         });
 
         connectionRef.current = peer;
@@ -95,17 +86,14 @@ const VideoChat = () => {
 
         peer.on('signal', (data) => {
             socket.emit('answer', { signal: data, roomId });
-            alert("Cevap (answer) sinyali gönderildi.");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
-            alert("Karşı tarafın video akışı alındı.");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
-            alert("ICE candidate sinyali gönderildi.");
         });
 
         peer.signal(callerSignal);
@@ -116,7 +104,6 @@ const VideoChat = () => {
         if (stream) {
             stream.getVideoTracks()[0].enabled = !cameraEnabled;
             setCameraEnabled(!cameraEnabled);
-            alert(`Kamera ${cameraEnabled ? "kapatıldı" : "açıldı"}.`);
         }
     };
 
@@ -124,26 +111,35 @@ const VideoChat = () => {
         if (stream) {
             stream.getAudioTracks()[0].enabled = !microphoneEnabled;
             setMicrophoneEnabled(!microphoneEnabled);
-            alert(`Mikrofon ${microphoneEnabled ? "kapatıldı" : "açıldı"}.`);
         }
     };
 
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
-            <div style={{ width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: '10px', backgroundColor: '#222' }}>
-                <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
-                <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute' }} />
+            <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
+                
+                {/* Başlatan kullanıcının videosu (sol taraf) */}
+                <div style={{ width: '48%', height: '100%', position: 'relative' }}>
+                    <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                </div>
 
-                <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
-                    <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
-                        {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                    </IconButton>
-                    <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
-                        {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
-                    </IconButton>
+                {/* Katılan kullanıcının videosu (sağ taraf) */}
+                <div style={{ width: '48%', height: '100%', position: 'relative' }}>
+                    <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                 </div>
             </div>
 
+            {/* Kamera ve Mikrofon Butonları */}
+            <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
+                <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
+                    {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+                </IconButton>
+                <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
+                    {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
+                </IconButton>
+            </div>
+
+            {/* Arama Başlatma ve Katılma Butonları */}
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
                 {!userConnected && !callInitiated && (
                     <Button variant="contained" color="primary" onClick={initiateCall}>
