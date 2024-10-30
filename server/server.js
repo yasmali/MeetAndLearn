@@ -5,11 +5,25 @@ const { Server } = require('socket.io');
 // Express uygulaması oluştur
 const app = express();
 
+app.use(cors({
+    origin: "https://meet-and-learn.vercel.app/", // Vercel üzerindeki istemci URL'inizi buraya yazın
+    methods: ["GET", "POST"]
+}));
+
 // HTTP sunucusu oluştur
 const server = http.createServer(app);
 
 // Socket.io sunucusunu başlat
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "https://meet-and-learn.vercel.app/", // Vercel üzerindeki istemci URL'inizi buraya yazın
+        methods: ["GET", "POST"]
+    }
+});
+
+app.get('/', (req, res) => {
+    res.send("Meet and Learn uygulaması Socket.io üzerinden çalışıyor!");
+});
 
 io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
