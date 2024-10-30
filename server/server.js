@@ -25,13 +25,7 @@ const server = http.createServer(app);
 // Socket.io ile CORS yapılandırması
 const io = new Server(server, {
     cors: {
-        origin: (origin, callback) => {
-            if (origin === "https://meet-and-learn.vercel.app" || !origin) {
-                callback(null, true);
-            } else {
-                callback(new Error("CORS policy does not allow access from this origin."));
-            }
-        },
+        origin: "*", // Geçici olarak tüm kaynaklara izin verin
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type"],
         credentials: true

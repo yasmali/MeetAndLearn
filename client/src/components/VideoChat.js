@@ -8,7 +8,10 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
-const socket = io.connect('https://meetandlearn.onrender.com'); // Sunucu URL'inizi buraya ekleyin
+const socket = io.connect('https://meetandlearn.onrender.com', {
+    transports: ['websocket', 'polling'],
+    secure: true,
+});
 
 const VideoChat = () => {
     const { roomId } = useParams();
