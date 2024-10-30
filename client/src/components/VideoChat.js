@@ -18,35 +18,28 @@ const VideoChat = () => {
     const [receivingCall, setReceivingCall] = useState(false);
     const [callerSignal, setCallerSignal] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
-    const [callInitiated, setCallInitiated] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
-    const [userId, setUserId] = useState(null);
-    const [otherUserId, setOtherUserId] = useState(null);
 
     const myVideo = useRef();
     const userVideo = useRef();
     const connectionRef = useRef();
 
     useEffect(() => {
+        // Yüksek çözünürlüklü video akışını başlat
         navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: { width: 1280, height: 720 },
             audio: true
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
-            console.log("Yerel video akışı başlatıldı");
+            console.log("Yerel video akışı başlatıldı ve yüksek çözünürlük ayarlandı.");
         });
 
+        // Odaya katıl ve bağlantıyı başlat
         socket.emit('join-room', roomId);
-        socket.on('connect', () => {
-            setUserId(socket.id);
-            console.log("Kendi ID:", socket.id);
-        });
-
-        socket.on('user-connected', (id) => {
-            setOtherUserId(id);
-            if (!callInitiated) initiateCall();
+        socket.on('user-connected', () => {
+            initiateCall();
         });
 
         socket.on('offer', (data) => {
@@ -82,7 +75,6 @@ const VideoChat = () => {
         });
 
         connectionRef.current = peer;
-        setCallInitiated(true);
     };
 
     const answerCall = () => {
@@ -122,12 +114,6 @@ const VideoChat = () => {
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
-                <div style={{ position: 'absolute', top: '10px', left: '10px', color: 'white' }}>
-                    <p>Oda ID: {roomId}</p>
-                    <p>Kendi ID: {userId}</p>
-                    {otherUserId && <p>Diğer Kullanıcı ID: {otherUserId}</p>}
-                </div>
-
                 <div style={{ width: '48%', height: '100%', position: 'relative' }}>
                     <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                 </div>
