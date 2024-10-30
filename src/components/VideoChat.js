@@ -8,7 +8,7 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
-const socket = io.connect('https://meet-and-learn-qi0jmc270-yavuz-asmalis-projects.vercel.app/'); // Sunucu URL'inizi buraya ekleyin
+const socket = io.connect('https://meet-and-learn.vercel.app/'); // Sunucu URL'inizi buraya ekleyin
 
 const VideoChat = () => {
     const { roomId } = useParams();
