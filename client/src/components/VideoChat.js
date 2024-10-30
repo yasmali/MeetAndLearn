@@ -10,7 +10,6 @@ import MicOffIcon from '@mui/icons-material/MicOff';
 
 const socket = io.connect('https://meetandlearn.onrender.com', {
     transports: ['websocket', 'polling'],
-    secure: true,
 });
 
 const VideoChat = () => {
