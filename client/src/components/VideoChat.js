@@ -22,6 +22,7 @@ const VideoChat = () => {
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
+    const [isInitiator, setIsInitiator] = useState(false);
 
     const myVideo = useRef();
     const userVideo = useRef();
@@ -70,6 +71,7 @@ const VideoChat = () => {
     }, [roomId]);
 
     const initiateCall = () => {
+        setIsInitiator(true); // Başlatan kullanıcı
         const peer = new Peer({ initiator: true, trickle: true, stream });
 
         peer.on('signal', (data) => {
@@ -155,10 +157,18 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {receivingCall && !callAccepted && (
-                    <Button variant="contained" color="secondary" onClick={answerCall}>
-                        Katıl
-                    </Button>
+                {!callAccepted && (
+                    isInitiator ? (
+                        <Button variant="contained" color="primary" onClick={initiateCall}>
+                            Başlat
+                        </Button>
+                    ) : (
+                        receivingCall && (
+                            <Button variant="contained" color="secondary" onClick={answerCall}>
+                                Katıl
+                            </Button>
+                        )
+                    )
                 )}
             </div>
         </div>
