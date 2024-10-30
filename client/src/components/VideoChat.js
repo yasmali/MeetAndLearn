@@ -22,6 +22,8 @@ const VideoChat = () => {
     const [userConnected, setUserConnected] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
+    const [userId, setUserId] = useState(null);
+    const [otherUserId, setOtherUserId] = useState(null);
 
     const myVideo = useRef();
     const userVideo = useRef();
@@ -35,32 +37,42 @@ const VideoChat = () => {
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
+            console.log("Yerel video akışı başlatıldı");
         });
 
-        // Odaya katıl
+        // Odaya katıl ve kendi ID'ni al
         socket.emit('join-room', roomId);
+        socket.on('connect', () => {
+            setUserId(socket.id); // Kendi Socket ID'sini kaydet
+            console.log("Kendi ID:", socket.id);
+        });
 
-        // Başka bir kullanıcı bağlandığında
-        socket.on('user-connected', () => {
+        // Diğer kullanıcı bağlantı kurduğunda ID bilgisi ile birlikte al
+        socket.on('user-connected', (id) => {
             setUserConnected(true);
+            setOtherUserId(id); // Bağlanan kullanıcının ID'sini kaydet
+            console.log("Diğer kullanıcı bağlandı, ID:", id);
         });
 
         // Teklif (offer) sinyali alındığında
         socket.on('offer', (signal) => {
             setReceivingCall(true);
             setCallerSignal(signal);
+            console.log("Teklif (offer) sinyali alındı");
         });
 
         // Cevap (answer) sinyali alındığında
         socket.on('answer', (signal) => {
             setCallAccepted(true);
             connectionRef.current.signal(signal);
+            console.log("Cevap (answer) sinyali alındı");
         });
 
         // ICE aday sinyali alındığında
         socket.on('ice-candidate', (candidate) => {
             if (connectionRef.current) {
                 connectionRef.current.signal(candidate);
+                console.log("ICE adayı alındı");
             }
         });
     }, [roomId]);
@@ -70,19 +82,17 @@ const VideoChat = () => {
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
+            console.log("Teklif (offer) sinyali gönderildi");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
+            console.log("Diğer kullanıcının video akışı alındı");
         });
 
-        peer.on('error', (err) => {
-            console.error("Peer bağlantı hatası:", err);
-        });
-
-        peer.on('close', () => {
-            console.log("Peer bağlantısı kapatıldı.");
-            userVideo.current.srcObject = null;
+        peer.on('ice-candidate', (candidate) => {
+            socket.emit('ice-candidate', { candidate, roomId });
+            console.log("ICE adayı gönderildi");
         });
 
         connectionRef.current = peer;
@@ -95,19 +105,17 @@ const VideoChat = () => {
 
         peer.on('signal', (data) => {
             socket.emit('answer', { signal: data, roomId });
+            console.log("Cevap (answer) sinyali gönderildi");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
+            console.log("Diğer kullanıcının video akışı alındı");
         });
 
-        peer.on('error', (err) => {
-            console.error("Peer bağlantı hatası:", err);
-        });
-
-        peer.on('close', () => {
-            console.log("Peer bağlantısı kapatıldı.");
-            userVideo.current.srcObject = null;
+        peer.on('ice-candidate', (candidate) => {
+            socket.emit('ice-candidate', { candidate, roomId });
+            console.log("ICE adayı gönderildi");
         });
 
         peer.signal(callerSignal);
@@ -132,6 +140,13 @@ const VideoChat = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
                 
+                {/* Kullanıcı ID'lerini ve Oda ID'sini Göster */}
+                <div style={{ position: 'absolute', top: '10px', left: '10px', color: 'white' }}>
+                    <p>Oda ID: {roomId}</p>
+                    <p>Kendi ID: {userId}</p>
+                    {otherUserId && <p>Diğer Kullanıcı ID: {otherUserId}</p>}
+                </div>
+
                 {/* Başlatan kullanıcının videosu (sol taraf) */}
                 <div style={{ width: '48%', height: '100%', position: 'relative' }}>
                     <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
