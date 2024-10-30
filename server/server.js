@@ -1,4 +1,15 @@
-const io = require('socket.io')(server);
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+// Express uygulaması oluştur
+const app = express();
+
+// HTTP sunucusu oluştur
+const server = http.createServer(app);
+
+// Socket.io sunucusunu başlat
+const io = new Server(server);
 
 io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
@@ -41,4 +52,10 @@ io.on('connection', (socket) => {
             socket.to(roomId).emit('user-disconnected');
         });
     });
+});
+
+// Sunucuyu başlatmak için bir port seç
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`Sunucu ${PORT} portunda çalışıyor`);
 });
