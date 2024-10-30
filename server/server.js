@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const cors = require('cors'); // Cors paketini ekleyin
 
 // Express uygulaması oluştur
 const app = express();
