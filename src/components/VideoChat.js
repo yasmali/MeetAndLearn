@@ -8,7 +8,7 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
-const socket = io.connect('https://meet-and-learn.vercel.app/'); // Sunucu URL'inizi buraya ekleyin
+const socket = io.connect('https://your-deployed-server-url.com'); // Sunucu URL'inizi buraya ekleyin
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -17,6 +17,7 @@ const VideoChat = () => {
     const [callerSignal, setCallerSignal] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
     const [callInitiated, setCallInitiated] = useState(false);
+    const [roomStatus, setRoomStatus] = useState('start');
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
 
@@ -36,6 +37,11 @@ const VideoChat = () => {
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
+        });
+
+        // Oda durumunu al - Aramayı başlat mı, yoksa katıl mı?
+        socket.on('room-status', ({ status }) => {
+            setRoomStatus(status);
         });
 
         socket.on('offer', (data) => {
@@ -131,14 +137,14 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {!callInitiated && (
+                {roomStatus === 'start' && !callInitiated && (
                     <Button variant="contained" color="primary" onClick={initiateCall}>
                         Aramayı Başlat
                     </Button>
                 )}
-                {receivingCall && !callAccepted && (
+                {roomStatus === 'join' && receivingCall && !callAccepted && (
                     <Button variant="contained" color="secondary" onClick={answerCall}>
-                        Aramayı Kabul Et
+                        Katıl
                     </Button>
                 )}
             </div>

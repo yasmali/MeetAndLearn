@@ -1,17 +1,19 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+const io = require('socket.io')(server);
 
 io.on('connection', (socket) => {
-    console.log('Bir kullanıcı bağlandı:', socket.id);
-
     socket.on('join-room', (roomId) => {
+        const room = io.sockets.adapter.rooms.get(roomId);
+        const usersInRoom = room ? room.size : 0;
+
         socket.join(roomId);
-        console.log(`Kullanıcı ${socket.id} oda ${roomId} katıldı`);
+
+        if (usersInRoom === 1) {
+            // İlk kullanıcı için "Aramayı Başlat" sinyali gönder
+            io.to(socket.id).emit('room-status', { status: 'start' });
+        } else {
+            // Sonradan gelen kullanıcılar için "Katıl" sinyali gönder
+            io.to(socket.id).emit('room-status', { status: 'join' });
+        }
     });
 
     socket.on('offer', (data) => {
@@ -19,18 +21,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('answer', (data) => {
-        socket.to(data.roomId).emit('answer', data);
+        socket.to(data.roomId).emit('answer', data.signal);
     });
 
-    socket.on('ice-candidate', (data) => {
-        socket.to(data.roomId).emit('ice-candidate', data);
+    socket.on('ice-candidate', (candidate) => {
+        socket.to(candidate.roomId).emit('ice-candidate', candidate);
     });
-
-    socket.on('disconnect', () => {
-        console.log('Bir kullanıcı ayrıldı:', socket.id);
-    });
-});
-
-server.listen(5000, () => {
-    console.log('Sunucu 5000 portunda çalışıyor');
 });
