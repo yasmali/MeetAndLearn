@@ -31,6 +31,13 @@ io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
 
     socket.on('join-room', (roomId) => {
+        const room = io.sockets.adapter.rooms.get(roomId) || new Set();
+
+        if (room.size >= 2) {
+            socket.emit('room-full', "Oda dolu, başka bir kullanıcı bağlanamaz.");
+            return;
+        }
+
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
         socket.to(roomId).emit('user-connected', socket.id);

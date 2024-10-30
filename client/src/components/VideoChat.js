@@ -7,6 +7,7 @@ import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
+import NoCameraIcon from '@mui/icons-material/VideocamOff';
 
 const socket = io.connect('https://meetandlearn.onrender.com', {
     transports: ['websocket', 'polling'],
@@ -20,25 +21,28 @@ const VideoChat = () => {
     const [callAccepted, setCallAccepted] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
+    const [roomFull, setRoomFull] = useState(false);
 
     const myVideo = useRef();
     const userVideo = useRef();
     const connectionRef = useRef();
 
     useEffect(() => {
+        socket.emit('join-room', roomId);
+
+        socket.on('room-full', () => {
+            setRoomFull(true);
+        });
+
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
-            console.log("Yerel video akışı başlatıldı ve yüksek çözünürlük ayarlandı.");
         });
 
-        socket.emit('join-room', roomId);
-        
         socket.on('user-connected', (userId) => {
-            console.log("Bir kullanıcı odaya katıldı:", userId);
             setReceivingCall(true);
         });
 
@@ -59,7 +63,6 @@ const VideoChat = () => {
         socket.on('user-disconnected', () => {
             if (userVideo.current) {
                 userVideo.current.srcObject = null;
-                console.log("Diğer kullanıcı bağlantıyı kesti.");
             }
         });
 
@@ -118,15 +121,27 @@ const VideoChat = () => {
         }
     };
 
+    if (roomFull) {
+        return <h1>Oda dolu. Başka bir kullanıcı bağlanamaz.</h1>;
+    }
+
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
-                <div style={{ width: '48%', height: '100%', position: 'relative' }}>
-                    <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
+                    {cameraEnabled ? (
+                        <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                    ) : (
+                        <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
+                    )}
                 </div>
 
-                <div style={{ width: '48%', height: '100%', position: 'relative' }}>
-                    <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
+                    {callAccepted ? (
+                        <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                    ) : (
+                        <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
+                    )}
                 </div>
             </div>
 
