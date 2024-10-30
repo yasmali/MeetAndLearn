@@ -15,10 +15,7 @@ const socket = io.connect('https://meetandlearn.onrender.com', {
 const VideoChat = () => {
     const { roomId } = useParams();
     const [stream, setStream] = useState(null);
-    const [receivingCall, setReceivingCall] = useState(false);
-    const [callerSignal, setCallerSignal] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
-    const [callInitiated, setCallInitiated] = useState(false);
     const [userConnected, setUserConnected] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
@@ -36,87 +33,74 @@ const VideoChat = () => {
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
-            console.log("Yerel video akışı başlatıldı");
         });
 
         socket.emit('join-room', roomId);
+        
         socket.on('connect', () => {
             setUserId(socket.id);
-            console.log("Kendi ID:", socket.id);
         });
 
         socket.on('user-connected', (id) => {
             setUserConnected(true);
             setOtherUserId(id);
-            console.log("Diğer kullanıcı bağlandı, ID:", id);
-
-            if (!callInitiated) {
-                initiateCall();
-            }
+            initiateCall(id);
         });
 
-        socket.on('offer', (signal) => {
-            setReceivingCall(true);
-            setCallerSignal(signal);
-            console.log("Teklif (offer) sinyali alındı");
+        socket.on('offer', (data) => {
+            handleReceiveCall(data);
         });
 
-        socket.on('answer', (signal) => {
-            setCallAccepted(true);
-            connectionRef.current.signal(signal);
-            console.log("Cevap (answer) sinyali alındı");
+        socket.on('answer', (data) => {
+            connectionRef.current.signal(data.signal);
         });
 
-        socket.on('ice-candidate', (candidate) => {
+        socket.on('ice-candidate', (data) => {
             if (connectionRef.current) {
-                connectionRef.current.signal(candidate);
-                console.log("ICE adayı alındı");
+                connectionRef.current.signal(data.candidate);
             }
         });
+
+        return () => {
+            socket.off();
+        };
     }, [roomId]);
 
-    const initiateCall = () => {
+    const initiateCall = (id) => {
         const peer = new Peer({ initiator: true, trickle: false, stream });
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
-            console.log("Teklif (offer) sinyali gönderildi");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
-            console.log("Diğer kullanıcının video akışı alındı");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
-            console.log("ICE adayı gönderildi");
         });
 
         connectionRef.current = peer;
-        setCallInitiated(true);
     };
 
-    const answerCall = () => {
+    const handleReceiveCall = (data) => {
         setCallAccepted(true);
         const peer = new Peer({ initiator: false, trickle: false, stream });
 
-        peer.on('signal', (data) => {
-            socket.emit('answer', { signal: data, roomId });
-            console.log("Cevap (answer) sinyali gönderildi");
+        peer.on('signal', (signal) => {
+            socket.emit('answer', { signal, roomId });
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
-            console.log("Diğer kullanıcının video akışı alındı");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
-            console.log("ICE adayı gönderildi");
         });
 
-        peer.signal(callerSignal);
+        peer.signal(data.signal);
         connectionRef.current = peer;
     };
 
@@ -159,19 +143,6 @@ const VideoChat = () => {
                 <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
                     {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
                 </IconButton>
-            </div>
-
-            <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {!userConnected && !callInitiated && (
-                    <Button variant="contained" color="primary" onClick={initiateCall}>
-                        Aramayı Başlat
-                    </Button>
-                )}
-                {userConnected && receivingCall && !callAccepted && (
-                    <Button variant="contained" color="secondary" onClick={answerCall}>
-                        Katıl
-                    </Button>
-                )}
             </div>
         </div>
     );

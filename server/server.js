@@ -33,26 +33,24 @@ io.on('connection', (socket) => {
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
-        socket.to(roomId).emit('user-connected', socket.id);
+        
+        socket.to(roomId).emit('user-connected', socket.id); // Yeni kullanıcı geldiğinde mevcut kullanıcıya bilgi ver
 
         socket.on('offer', (data) => {
-            console.log(`Offer sinyali alındı ve ${data.roomId} odasına iletildi.`);
-            socket.to(data.roomId).emit('offer', data.signal);
+            socket.to(data.roomId).emit('offer', { signal: data.signal, from: socket.id });
         });
 
         socket.on('answer', (data) => {
-            console.log(`Answer sinyali alındı ve ${data.roomId} odasına iletildi.`);
-            socket.to(data.roomId).emit('answer', data.signal);
+            socket.to(data.roomId).emit('answer', { signal: data.signal, from: socket.id });
         });
 
         socket.on('ice-candidate', (data) => {
-            console.log(`ICE candidate sinyali alındı ve ${data.roomId} odasına iletildi.`);
-            socket.to(data.roomId).emit('ice-candidate', data.candidate);
+            socket.to(data.roomId).emit('ice-candidate', { candidate: data.candidate, from: socket.id });
         });
 
         socket.on('disconnect', () => {
             console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
-            socket.to(roomId).emit('user-disconnected');
+            socket.to(roomId).emit('user-disconnected', socket.id);
         });
     });
 });
