@@ -1,31 +1,43 @@
 const io = require('socket.io')(server);
 
 io.on('connection', (socket) => {
+    console.log("Yeni bir kullanıcı bağlandı:", socket.id);
+
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
+        console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
+        
         const room = io.sockets.adapter.rooms.get(roomId);
         const usersInRoom = room ? room.size : 0;
+        console.log(`Odadaki kullanıcı sayısı: ${usersInRoom}`);
 
-        // Odaya zaten kullanıcı varsa yeni kullanıcıya 'user-connected' sinyali gönder
+        // Odaya zaten bir kullanıcı varsa yeni kullanıcıya 'user-connected' sinyali gönder
         if (usersInRoom > 1) {
+            console.log(`Odaya yeni bir kullanıcı katıldı, 'user-connected' sinyali gönderildi.`);
             socket.emit('user-connected');
         }
 
-        // Teklif ve cevap sinyallerini karşılıklı ilet
+        // Teklif (offer) sinyali gönderildiğinde
         socket.on('offer', (data) => {
+            console.log(`Offer sinyali alındı ve ${data.roomId} odasına iletildi.`);
             socket.to(data.roomId).emit('offer', data.signal);
         });
 
+        // Cevap (answer) sinyali gönderildiğinde
         socket.on('answer', (data) => {
+            console.log(`Answer sinyali alındı ve ${data.roomId} odasına iletildi.`);
             socket.to(data.roomId).emit('answer', data.signal);
         });
 
+        // ICE aday sinyali gönderildiğinde
         socket.on('ice-candidate', (data) => {
+            console.log(`ICE candidate sinyali alındı ve ${data.roomId} odasına iletildi.`);
             socket.to(data.roomId).emit('ice-candidate', data.candidate);
         });
 
-        // Kullanıcı ayrıldığında odaya bildirim gönder
+        // Kullanıcı ayrıldığında
         socket.on('disconnect', () => {
+            console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
             socket.to(roomId).emit('user-disconnected');
         });
     });

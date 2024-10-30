@@ -8,7 +8,7 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
-const socket = io.connect('https://meet-and-learn.vercel.app/'); // Sunucu URL'inizi buraya ekleyin
+const socket = io.connect('http://localhost:5000'); // Sunucu URL'inizi buraya ekleyin
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -26,56 +26,63 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
+        // Odaya katıl
         socket.emit('join-room', roomId);
+        alert(`Odaya katıldı: ${roomId}`);
 
+        // Kullanıcıya video akışını başlat
         navigator.mediaDevices.getUserMedia({
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: true
         }).then((stream) => {
             setStream(stream);
             myVideo.current.srcObject = stream;
+            alert("Video ve ses akışı başlatıldı.");
         });
 
-        // Eğer kullanıcı odaya yeni katıldıysa 'user-connected' sinyalini alacak
+        // Odaya başka bir kullanıcı katıldığında
         socket.on('user-connected', () => {
             setUserConnected(true);
+            alert("Bir kullanıcı odaya katıldı. Katılma durumu aktif.");
         });
 
+        // Teklif sinyali alındığında
         socket.on('offer', (signal) => {
             setReceivingCall(true);
             setCallerSignal(signal);
+            alert("Teklif (offer) sinyali alındı.");
         });
 
+        // Cevap sinyali alındığında
         socket.on('answer', (signal) => {
             setCallAccepted(true);
             connectionRef.current.signal(signal);
+            alert("Cevap (answer) sinyali alındı ve bağlantı kabul edildi.");
         });
 
+        // ICE aday sinyali alındığında
         socket.on('ice-candidate', (candidate) => {
             connectionRef.current.signal(candidate);
+            alert("ICE candidate sinyali alındı.");
         });
     }, [roomId]);
 
     const initiateCall = () => {
-        const peer = new Peer({
-            initiator: true,
-            trickle: false,
-            stream: stream,
-        });
+        const peer = new Peer({ initiator: true, trickle: false, stream: stream });
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
+            alert("Teklif (offer) sinyali gönderildi.");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
+            alert("Karşı tarafın video akışı alındı.");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
+            alert("ICE candidate sinyali gönderildi.");
         });
 
         connectionRef.current = peer;
@@ -84,22 +91,21 @@ const VideoChat = () => {
 
     const answerCall = () => {
         setCallAccepted(true);
-        const peer = new Peer({
-            initiator: false,
-            trickle: false,
-            stream: stream,
-        });
+        const peer = new Peer({ initiator: false, trickle: false, stream: stream });
 
         peer.on('signal', (data) => {
             socket.emit('answer', { signal: data, roomId });
+            alert("Cevap (answer) sinyali gönderildi.");
         });
 
         peer.on('stream', (userStream) => {
             userVideo.current.srcObject = userStream;
+            alert("Karşı tarafın video akışı alındı.");
         });
 
         peer.on('ice-candidate', (candidate) => {
             socket.emit('ice-candidate', { candidate, roomId });
+            alert("ICE candidate sinyali gönderildi.");
         });
 
         peer.signal(callerSignal);
@@ -110,6 +116,7 @@ const VideoChat = () => {
         if (stream) {
             stream.getVideoTracks()[0].enabled = !cameraEnabled;
             setCameraEnabled(!cameraEnabled);
+            alert(`Kamera ${cameraEnabled ? "kapatıldı" : "açıldı"}.`);
         }
     };
 
@@ -117,6 +124,7 @@ const VideoChat = () => {
         if (stream) {
             stream.getAudioTracks()[0].enabled = !microphoneEnabled;
             setMicrophoneEnabled(!microphoneEnabled);
+            alert(`Mikrofon ${microphoneEnabled ? "kapatıldı" : "açıldı"}.`);
         }
     };
 
