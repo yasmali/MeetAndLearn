@@ -8,7 +8,13 @@ const app = express();
 
 // Express ile CORS yapılandırması
 app.use(cors({
-    origin: "https://meet-and-learn.vercel.app/", // İstemci URL'inizi buraya yazın (Vercel URL'si)
+    origin: (origin, callback) => {
+        if (origin === "https://meet-and-learn.vercel.app" || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error("CORS policy does not allow access from this origin."));
+        }
+    },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
     credentials: true
@@ -19,12 +25,19 @@ const server = http.createServer(app);
 // Socket.io ile CORS yapılandırması
 const io = new Server(server, {
     cors: {
-        origin: "https://meet-and-learn.vercel.app/", // İstemci URL'inizi buraya yazın (Vercel URL'si)
+        origin: (origin, callback) => {
+            if (origin === "https://meet-and-learn.vercel.app" || !origin) {
+                callback(null, true);
+            } else {
+                callback(new Error("CORS policy does not allow access from this origin."));
+            }
+        },
         methods: ["GET", "POST"],
         allowedHeaders: ["Content-Type"],
         credentials: true
     }
 });
+
 app.get('/', (req, res) => {
     res.send("Meet and Learn uygulaması Socket.io üzerinden çalışıyor!");
 });
