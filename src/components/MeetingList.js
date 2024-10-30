@@ -7,12 +7,14 @@ const MeetingList = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        // Toplantıları localStorage'dan alır ve state'e yükler
         const savedMeetings = JSON.parse(localStorage.getItem('meetings') || '[]');
         setMeetings(savedMeetings);
     }, []);
 
+    // Görüşmeyi Başlat butonuna basıldığında video görüşme sayfasına yönlendirir
     const handleStartMeeting = (meetingId) => {
-        navigate(`/meeting/${meetingId}`);
+        navigate(`/videochat/${meetingId}`);
     };
 
     return (

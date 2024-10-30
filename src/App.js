@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, useNavigate, Navigate } from 'react-router-dom';
 import Home from './components/Home';
 import Login from './components/Login';
 import ScheduleMeeting from './components/ScheduleMeeting';
 import MeetingList from './components/MeetingList';
 import VideoChat from './components/VideoChat';
 import Chat from './components/Chat';
-import About from './components/About'; // Hakkında sayfası için
-import SearchResults from './components/SearchResults'; // Arama sonuçları sayfası için
+import About from './components/About';
+import SearchResults from './components/SearchResults';
 import CourseDetails from './components/CourseDetails';
 
 import {
@@ -20,8 +20,7 @@ import {
     Button,
     InputBase,
 } from '@mui/material';
-import { Search as SearchIcon, Home as HomeIcon, CalendarToday, Info, ListAlt } from '@mui/icons-material';
-// import logo from './assets/logo.png'; // Logonun doğru konumuna göre güncelleyin
+import { Search as SearchIcon, Home as HomeIcon, Info, ListAlt } from '@mui/icons-material';
 
 function App() {
     return (
@@ -37,16 +36,33 @@ function AppContent() {
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
 
+    useEffect(() => {
+        // Sayfa yenilendiğinde localStorage'dan oturum bilgisini kontrol et
+        const storedUsername = localStorage.getItem('username');
+        const storedIsLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+
+        if (storedIsLoggedIn && storedUsername) {
+            setUsername(storedUsername);
+            setIsLoggedIn(true);
+        } else {
+            navigate('/login');
+        }
+    }, [navigate]);
+
     const handleLogin = (name) => {
         setUsername(name);
         setIsLoggedIn(true);
+        localStorage.setItem('username', name);
+        localStorage.setItem('isLoggedIn', 'true');
         navigate('/');
     };
 
     const handleLogout = () => {
         setIsLoggedIn(false);
         setUsername('');
-        navigate('/');
+        localStorage.removeItem('username');
+        localStorage.removeItem('isLoggedIn');
+        navigate('/login');
     };
 
     const handleSearch = () => {
@@ -60,7 +76,6 @@ function AppContent() {
             <AppBar position="static" sx={{ backgroundColor: '#2E3B55', px: 2 }}>
                 <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate('/')}>
-                        {/* <img src={logo} alt="Logo" style={{ height: 40, marginRight: 10 }} /> */}
                         <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white' }}>
                             Eğitim ve Toplantı Uygulaması
                         </Typography>
@@ -109,17 +124,18 @@ function AppContent() {
                             <Route path="/schedule" element={<ScheduleMeeting username={username} />} />
                             <Route path="/meetings" element={<MeetingList username={username} />} />
                             <Route path="/chat" element={<Chat username={username} />} />
-                            <Route path="/meeting/:meetingId" element={<VideoChat username={username} />} />
+                            <Route path="/videochat/:roomId" element={isLoggedIn ? <VideoChat /> : <Navigate to="/login" />} />
                             <Route path="/about" element={<About />} />
                             <Route path="/search" element={<SearchResults />} />
                             <Route path="/course/:id" element={<CourseDetails />} />
                         </>
                     ) : (
-                        <Route path="/" element={<Login onLogin={handleLogin} />} />
+                        <Route path="/login" element={<Login onLogin={handleLogin} />} />
                     )}
+                    <Route path="*" element={<Login onLogin={handleLogin} />} />
                 </Routes>
             </Box>
-            <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: '#2E3B55', color: 'white', mt: 4 }}>
+            <Box component="footer" sx={{ py: 3, px: 2, mt: 'auto', backgroundColor: '#2E3B55', color: 'white' }}>
                 <Container maxWidth="lg">
                     <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
                         "Geleceğin eğitim ve iletişim platformu"
