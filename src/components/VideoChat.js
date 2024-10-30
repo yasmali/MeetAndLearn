@@ -8,7 +8,7 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
-const socket = io.connect('https://your-deployed-server-url.com'); // Sunucu URL'inizi buraya ekleyin
+const socket = io.connect('https://meet-and-learn.vercel.app/'); // Sunucu URL'inizi buraya ekleyin
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -17,7 +17,7 @@ const VideoChat = () => {
     const [callerSignal, setCallerSignal] = useState(null);
     const [callAccepted, setCallAccepted] = useState(false);
     const [callInitiated, setCallInitiated] = useState(false);
-    const [roomStatus, setRoomStatus] = useState('start');
+    const [userConnected, setUserConnected] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
 
@@ -26,6 +26,7 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
+        // Odaya katıl ve video akışını başlat
         socket.emit('join-room', roomId);
 
         navigator.mediaDevices.getUserMedia({
@@ -39,14 +40,15 @@ const VideoChat = () => {
             myVideo.current.srcObject = stream;
         });
 
-        // Oda durumunu al - Aramayı başlat mı, yoksa katıl mı?
-        socket.on('room-status', ({ status }) => {
-            setRoomStatus(status);
+        // Başka bir kullanıcı odaya katıldığında çağrıyı başlat
+        socket.on('user-connected', () => {
+            setUserConnected(true);
+            initiateCall();
         });
 
-        socket.on('offer', (data) => {
+        socket.on('offer', (signal) => {
             setReceivingCall(true);
-            setCallerSignal(data.signal);
+            setCallerSignal(signal);
         });
 
         socket.on('answer', (signal) => {
@@ -137,12 +139,12 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {roomStatus === 'start' && !callInitiated && (
+                {!userConnected && !callInitiated && (
                     <Button variant="contained" color="primary" onClick={initiateCall}>
                         Aramayı Başlat
                     </Button>
                 )}
-                {roomStatus === 'join' && receivingCall && !callAccepted && (
+                {receivingCall && !callAccepted && (
                     <Button variant="contained" color="secondary" onClick={answerCall}>
                         Katıl
                     </Button>
