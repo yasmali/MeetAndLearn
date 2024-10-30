@@ -26,7 +26,6 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        // Yüksek çözünürlüklü video akışını başlat
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
@@ -36,10 +35,11 @@ const VideoChat = () => {
             console.log("Yerel video akışı başlatıldı ve yüksek çözünürlük ayarlandı.");
         });
 
-        // Odaya katıl ve bağlantıyı başlat
         socket.emit('join-room', roomId);
-        socket.on('user-connected', () => {
-            initiateCall();
+        
+        socket.on('user-connected', (userId) => {
+            console.log("Bir kullanıcı odaya katıldı:", userId);
+            setReceivingCall(true);
         });
 
         socket.on('offer', (data) => {
@@ -56,11 +56,18 @@ const VideoChat = () => {
             if (connectionRef.current) connectionRef.current.signal(candidate);
         });
 
+        socket.on('user-disconnected', () => {
+            if (userVideo.current) {
+                userVideo.current.srcObject = null;
+                console.log("Diğer kullanıcı bağlantıyı kesti.");
+            }
+        });
+
         return () => socket.disconnect();
     }, [roomId]);
 
     const initiateCall = () => {
-        const peer = new Peer({ initiator: true, trickle: false, stream });
+        const peer = new Peer({ initiator: true, trickle: true, stream });
 
         peer.on('signal', (data) => {
             socket.emit('offer', { signal: data, roomId });
@@ -70,8 +77,8 @@ const VideoChat = () => {
             userVideo.current.srcObject = userStream;
         });
 
-        peer.on('ice-candidate', (candidate) => {
-            socket.emit('ice-candidate', { candidate, roomId });
+        peer.on('iceCandidate', (candidate) => {
+            if (candidate) socket.emit('ice-candidate', { candidate, roomId });
         });
 
         connectionRef.current = peer;
@@ -79,7 +86,7 @@ const VideoChat = () => {
 
     const answerCall = () => {
         setCallAccepted(true);
-        const peer = new Peer({ initiator: false, trickle: false, stream });
+        const peer = new Peer({ initiator: false, trickle: true, stream });
 
         peer.on('signal', (data) => {
             socket.emit('answer', { signal: data, roomId });
@@ -89,8 +96,8 @@ const VideoChat = () => {
             userVideo.current.srcObject = userStream;
         });
 
-        peer.on('ice-candidate', (candidate) => {
-            socket.emit('ice-candidate', { candidate, roomId });
+        peer.on('iceCandidate', (candidate) => {
+            if (candidate) socket.emit('ice-candidate', { candidate, roomId });
         });
 
         peer.signal(callerSignal);
