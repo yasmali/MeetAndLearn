@@ -26,7 +26,6 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        // Odaya katıl ve video akışını başlat
         socket.emit('join-room', roomId);
 
         navigator.mediaDevices.getUserMedia({
@@ -40,10 +39,9 @@ const VideoChat = () => {
             myVideo.current.srcObject = stream;
         });
 
-        // Başka bir kullanıcı odaya katıldığında çağrıyı başlat
+        // Eğer kullanıcı odaya yeni katıldıysa 'user-connected' sinyalini alacak
         socket.on('user-connected', () => {
             setUserConnected(true);
-            initiateCall();
         });
 
         socket.on('offer', (signal) => {
@@ -144,7 +142,7 @@ const VideoChat = () => {
                         Aramayı Başlat
                     </Button>
                 )}
-                {receivingCall && !callAccepted && (
+                {userConnected && receivingCall && !callAccepted && (
                     <Button variant="contained" color="secondary" onClick={answerCall}>
                         Katıl
                     </Button>
