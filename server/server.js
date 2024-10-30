@@ -32,9 +32,7 @@ io.on('connection', (socket) => {
 
     socket.on('join-room', (roomId) => {
         socket.join(roomId);
-        console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
-        
-        socket.to(roomId).emit('user-connected', socket.id); // Yeni kullanıcı geldiğinde mevcut kullanıcıya bilgi ver
+        socket.to(roomId).emit('user-connected', socket.id);
 
         socket.on('offer', (data) => {
             socket.to(data.roomId).emit('offer', { signal: data.signal, from: socket.id });
@@ -49,7 +47,6 @@ io.on('connection', (socket) => {
         });
 
         socket.on('disconnect', () => {
-            console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
             socket.to(roomId).emit('user-disconnected', socket.id);
         });
     });
