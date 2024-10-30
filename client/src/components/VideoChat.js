@@ -30,7 +30,6 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        // Kullanıcıdan medya akışını al
         navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: true
@@ -40,35 +39,34 @@ const VideoChat = () => {
             console.log("Yerel video akışı başlatıldı");
         });
 
-        // Odaya katıl ve kendi ID'ni al
         socket.emit('join-room', roomId);
         socket.on('connect', () => {
-            setUserId(socket.id); // Kendi Socket ID'sini kaydet
+            setUserId(socket.id);
             console.log("Kendi ID:", socket.id);
         });
 
-        // Diğer kullanıcı bağlantı kurduğunda ID bilgisi ile birlikte al
         socket.on('user-connected', (id) => {
             setUserConnected(true);
-            setOtherUserId(id); // Bağlanan kullanıcının ID'sini kaydet
+            setOtherUserId(id);
             console.log("Diğer kullanıcı bağlandı, ID:", id);
+
+            if (!callInitiated) {
+                initiateCall();
+            }
         });
 
-        // Teklif (offer) sinyali alındığında
         socket.on('offer', (signal) => {
             setReceivingCall(true);
             setCallerSignal(signal);
             console.log("Teklif (offer) sinyali alındı");
         });
 
-        // Cevap (answer) sinyali alındığında
         socket.on('answer', (signal) => {
             setCallAccepted(true);
             connectionRef.current.signal(signal);
             console.log("Cevap (answer) sinyali alındı");
         });
 
-        // ICE aday sinyali alındığında
         socket.on('ice-candidate', (candidate) => {
             if (connectionRef.current) {
                 connectionRef.current.signal(candidate);
@@ -139,26 +137,21 @@ const VideoChat = () => {
     return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
-                
-                {/* Kullanıcı ID'lerini ve Oda ID'sini Göster */}
                 <div style={{ position: 'absolute', top: '10px', left: '10px', color: 'white' }}>
                     <p>Oda ID: {roomId}</p>
                     <p>Kendi ID: {userId}</p>
                     {otherUserId && <p>Diğer Kullanıcı ID: {otherUserId}</p>}
                 </div>
 
-                {/* Başlatan kullanıcının videosu (sol taraf) */}
                 <div style={{ width: '48%', height: '100%', position: 'relative' }}>
                     <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                 </div>
 
-                {/* Katılan kullanıcının videosu (sağ taraf) */}
                 <div style={{ width: '48%', height: '100%', position: 'relative' }}>
                     <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                 </div>
             </div>
 
-            {/* Kamera ve Mikrofon Butonları */}
             <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
                 <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
                     {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
@@ -168,7 +161,6 @@ const VideoChat = () => {
                 </IconButton>
             </div>
 
-            {/* Arama Başlatma ve Katılma Butonları */}
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
                 {!userConnected && !callInitiated && (
                     <Button variant="contained" color="primary" onClick={initiateCall}>
