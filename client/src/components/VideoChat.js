@@ -23,6 +23,7 @@ const VideoChat = () => {
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
     const [isInitiator, setIsInitiator] = useState(false);
+    const [callStarted, setCallStarted] = useState(false); // Yeni durum: Çağrı başladı mı?
 
     const myVideo = useRef();
     const userVideo = useRef();
@@ -43,7 +44,8 @@ const VideoChat = () => {
             myVideo.current.srcObject = stream;
         });
 
-        socket.on('user-connected', (userId) => {
+        socket.on('user-connected', () => {
+            // İkinci kullanıcı odaya girdiğinde "Katıl" tuşunu görmesi için receivingCall güncellenir
             setReceivingCall(true);
         });
 
@@ -71,7 +73,8 @@ const VideoChat = () => {
     }, [roomId]);
 
     const initiateCall = () => {
-        setIsInitiator(true); // Başlatan kullanıcı
+        setIsInitiator(true); // İlk kullanıcı olarak ayarlama
+        setCallStarted(true); // Çağrının başlatıldığını işaretle
         const peer = new Peer({ initiator: true, trickle: true, stream });
 
         peer.on('signal', (data) => {
@@ -91,6 +94,7 @@ const VideoChat = () => {
 
     const answerCall = () => {
         setCallAccepted(true);
+        setCallStarted(true); // İkinci kullanıcı katıldığında çağrının başlatıldığını işaretle
         const peer = new Peer({ initiator: false, trickle: true, stream });
 
         peer.on('signal', (data) => {
@@ -131,7 +135,7 @@ const VideoChat = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#000', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
                 <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
-                    {cameraEnabled ? (
+                    {callStarted && cameraEnabled ? (
                         <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                     ) : (
                         <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
@@ -157,7 +161,7 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {!callAccepted && (
+                {!callStarted && (
                     isInitiator ? (
                         <Button variant="contained" color="primary" onClick={initiateCall}>
                             Başlat
