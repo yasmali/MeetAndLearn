@@ -104,25 +104,26 @@ const VideoChat = () => {
     }
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', position: 'relative' }}>
-            <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
-                <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
-                    {stream && cameraEnabled ? (
-                        <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
-                    ) : (
-                        <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
-                    )}
-                </div>
-
-                <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
-                    {userVideo.current && userVideo.current.srcObject ? (
-                        <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
-                    ) : (
-                        <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
-                    )}
-                </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', position: 'relative', backgroundColor: '#333' }}>
+            {/* Diğer kullanıcının görüntüsü büyük pencerede */}
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                {userVideo.current && userVideo.current.srcObject ? (
+                    <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                    <NoCameraIcon style={{ fontSize: 80, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                )}
             </div>
 
+            {/* Kendi görüntünüz sağ alt köşede küçük pencerede */}
+            <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '200px', height: '150px', border: '2px solid #fff', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#000' }}>
+                {stream && cameraEnabled ? (
+                    <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                    <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                )}
+            </div>
+
+            {/* Kamera ve Mikrofon Kontrolleri */}
             <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
                 <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
                     {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
