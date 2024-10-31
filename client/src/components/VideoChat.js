@@ -54,13 +54,16 @@ const VideoChat = () => {
             }
         });
 
-        // Yerel video akışını başlatma
+        // Yerel video akışını başlatma ve hemen myVideo'ya bağlama
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
         }).then((stream) => {
             setStream(stream);
-            console.log("Yerel video akışı başarıyla alındı:", stream);
+            if (myVideo.current) {
+                myVideo.current.srcObject = stream;
+                console.log("Yerel video akışı başarıyla myVideo referansına bağlandı:", myVideo.current.srcObject);
+            }
         }).catch((error) => {
             console.error("Video akışı başlatılamadı:", error);
         });
@@ -88,16 +91,6 @@ const VideoChat = () => {
         return () => socket.disconnect();
     }, [roomId]);
 
-    // stream veya myVideo değiştiğinde myVideo'ya bağlanmasını sağlayan useEffect
-    useEffect(() => {
-        if (stream && myVideo.current) {
-            myVideo.current.srcObject = stream;
-            console.log("Video elementine bağlandı:", myVideo.current.srcObject);
-        } else if (!myVideo.current) {
-            console.log("myVideo referansı henüz mevcut değil.");
-        }
-    }, [stream, myVideo.current]);
-
     const initiateCall = () => {
         setCallStarted(true);
         const peer = new Peer({ initiator: true, trickle: true, stream });
@@ -110,8 +103,6 @@ const VideoChat = () => {
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
-            } else {
-                console.log("userVideo referansı bulunamadı.");
             }
         });
 
@@ -132,8 +123,6 @@ const VideoChat = () => {
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
-            } else {
-                console.log("userVideo referansı bulunamadı.");
             }
         });
 
@@ -168,7 +157,7 @@ const VideoChat = () => {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', position: 'relative' }}>
             <div style={{ display: 'flex', width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px', position: 'relative', justifyContent: 'space-between', borderRadius: '10px', backgroundColor: '#222', padding: '10px' }}>
                 <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
-                    {callStarted && cameraEnabled ? (
+                    {stream && cameraEnabled ? (
                         <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                     ) : (
                         <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
