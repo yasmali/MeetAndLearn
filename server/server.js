@@ -30,50 +30,40 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
 
-    socket.on('join-room', (roomId) => {
+    socket.on('join-room', ({ roomId }) => {
         const room = io.sockets.adapter.rooms.get(roomId) || new Set();
 
-        if (room.size > 2) {
-            socket.emit('room-full', "Oda dolu, başka bir kullanıcı bağlanamaz.");
+        if (room.size >= 2) {
+            socket.emit('room-full');
             return;
         }
 
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
 
-        // Diğer kullanıcılara katılan kullanıcı hakkında bilgi gönder
-        socket.to(roomId).emit('user-joined', { socketId: socket.id });
-
-        // Diğer kullanıcının gönderdiği sinyali yeni katılan kullanıcıya ilet
-        socket.on('sending-signal', (data) => {
-            socket.to(data.to).emit('receiving-signal', {
-                signal: data.signal,
-                socketId: socket.id
-            });
+        // Odadaki diğer kullanıcılara, yeni kullanıcının katıldığını bildir
+        socket.to(roomId).emit('user-joined', {
+            callerId: socket.id
         });
 
-        // Yeni katılan kullanıcının yanıtını mevcut kullanıcıya ilet
-        socket.on('returning-signal', (data) => {
-            socket.to(data.to).emit('receiving-signal', {
-                signal: data.signal,
-                socketId: socket.id
-            });
+        // Mevcut kullanıcıya odadaki diğer kullanıcıların listesini gönder
+        const otherUsers = [...room].filter(id => id !== socket.id);
+        socket.emit('all-users', otherUsers);
+
+        socket.on('sending-signal', ({ userToSignal, callerId, signal }) => {
+            io.to(userToSignal).emit('receiving-signal', { callerId, signal });
         });
 
-        // ICE adaylarını diğer kullanıcıya ilet
-        socket.on('ice-candidate', (data) => {
-            socket.to(data.roomId).emit('ice-candidate', {
-                candidate: data.candidate,
-                from: socket.id
-            });
+        socket.on('returning-signal', ({ callerId, signal }) => {
+            io.to(callerId).emit('receiving-returned-signal', { id: socket.id, signal });
         });
 
         socket.on('disconnect', () => {
-            console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
             socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
         });
     });
 });
+
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

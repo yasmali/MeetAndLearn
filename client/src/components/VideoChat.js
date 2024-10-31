@@ -100,10 +100,11 @@ const VideoChat = () => {
             setMySocketId(socket.id);
             console.log('Socket.IO bağlantısı kuruldu:', socket.id);
         });
-
+    
         startVideoStream().then((currentStream) => {
             socket.emit('join-room', { roomId });
-
+    
+            // Odaya katılmış diğer kullanıcıların listesini al ve bağlantı başlat
             socket.on('all-users', users => {
                 const peers = [];
                 users.forEach(userId => {
@@ -113,31 +114,34 @@ const VideoChat = () => {
                 });
                 setOtherUsers(peers);
             });
-
+    
+            // Yeni bir kullanıcı katıldığında `user-joined` olayı tetiklenir
             socket.on('user-joined', payload => {
+                console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
                 const peer = addPeer(payload.signal, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
             });
-
+    
+            // Kullanıcıya sinyal gönderildiğinde `receiving-returned-signal` olayını dinle
             socket.on("receiving-returned-signal", payload => {
-                const item = peersRef.current[payload.id];
-                item.signal(payload.signal);
+                const peer = peersRef.current[payload.id];
+                peer.signal(payload.signal);
             });
         });
-
+    
         socket.on('room-full', () => {
             setRoomFull(true);
             console.log("Oda dolu uyarısı alındı.");
         });
-
+    
         return () => {
             socket.off('connect');
             socket.disconnect();
             Object.values(peersRef.current).forEach(peer => peer.destroy());
         };
     }, [roomId]);
-
+    
     const toggleCamera = async () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
