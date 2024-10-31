@@ -80,11 +80,12 @@ const VideoChat = () => {
                 setOtherSocketId(data.socketId);
                 setDialogOpen(true);
 
+                // Gelen kullanıcıya sinyal gönder
                 const peer = createPeerConnection(currentStream, true);
                 connectionRef.current = peer;
 
-                socket.on('receiving-signal', (data) => {
-                    peer.signal(data.signal);
+                peer.on('signal', (signalData) => {
+                    socket.emit('sending-signal', { signal: signalData, to: data.socketId });
                 });
             });
 
@@ -92,6 +93,10 @@ const VideoChat = () => {
                 const peer = createPeerConnection(currentStream, false);
                 connectionRef.current = peer;
                 peer.signal(data.signal);
+            });
+
+            socket.on('returning-signal', (data) => {
+                connectionRef.current.signal(data.signal);
             });
         });
 

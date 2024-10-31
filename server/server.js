@@ -41,26 +41,36 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
 
-        // Odaya yeni bir kullanıcı katıldığında diğer kullanıcılara bilgi gönder
-        io.to(roomId).emit('user-joined', { socketId: socket.id });
+        // Diğer kullanıcılara katılan kullanıcı hakkında bilgi gönder
+        socket.to(roomId).emit('user-joined', { socketId: socket.id });
 
-        socket.on('offer', (data) => {
-            socket.to(data.roomId).emit('offer', { signal: data.signal, from: socket.id });
+        // Diğer kullanıcının gönderdiği sinyali yeni katılan kullanıcıya ilet
+        socket.on('sending-signal', (data) => {
+            socket.to(data.to).emit('receiving-signal', {
+                signal: data.signal,
+                socketId: socket.id
+            });
         });
 
-        socket.on('answer', (data) => {
-            socket.to(data.roomId).emit('answer', { signal: data.signal, from: socket.id });
+        // Yeni katılan kullanıcının yanıtını mevcut kullanıcıya ilet
+        socket.on('returning-signal', (data) => {
+            socket.to(data.to).emit('receiving-signal', {
+                signal: data.signal,
+                socketId: socket.id
+            });
         });
 
+        // ICE adaylarını diğer kullanıcıya ilet
         socket.on('ice-candidate', (data) => {
-            socket.to(data.roomId).emit('ice-candidate', { candidate: data.candidate, from: socket.id });
+            socket.to(data.roomId).emit('ice-candidate', {
+                candidate: data.candidate,
+                from: socket.id
+            });
         });
 
         socket.on('disconnect', () => {
             console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
-            socket.to(roomId).emit('user-disconnected');
-
-            io.to(roomId).emit('room-users', Array.from(io.sockets.adapter.rooms.get(roomId) || []));
+            socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
         });
     });
 });
