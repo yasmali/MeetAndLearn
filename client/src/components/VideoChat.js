@@ -54,15 +54,13 @@ const VideoChat = () => {
             }
         });
 
+        // Yerel video akışını başlatma
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
         }).then((stream) => {
             setStream(stream);
-            if (myVideo.current) {
-                myVideo.current.srcObject = stream;
-                console.log("Yerel video akışı başarıyla myVideo referansına bağlandı:", myVideo.current.srcObject);
-            }
+            console.log("Yerel video akışı başarıyla alındı:", stream);
         }).catch((error) => {
             console.error("Video akışı başlatılamadı:", error);
         });
@@ -90,6 +88,14 @@ const VideoChat = () => {
         return () => socket.disconnect();
     }, [roomId]);
 
+    // stream değiştiğinde myVideo'ya bağlanmasını sağlayan useEffect
+    useEffect(() => {
+        if (stream && myVideo.current) {
+            myVideo.current.srcObject = stream;
+            console.log("Video elementine bağlandı:", myVideo.current.srcObject);
+        }
+    }, [stream]);
+
     const initiateCall = () => {
         setCallStarted(true);
         const peer = new Peer({ initiator: true, trickle: true, stream });
@@ -99,7 +105,6 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            // Başlatan kullanıcı için karşı tarafın görüntüsünü userVideo referansına bağlayın
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
@@ -120,7 +125,6 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            // Katılan kullanıcı için karşı tarafın görüntüsünü userVideo referansına bağlayın
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
