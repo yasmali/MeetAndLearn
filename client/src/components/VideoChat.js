@@ -41,21 +41,19 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
-        // Sunucudan gelen room-users event'ini işleyin
         socket.on('room-users', (users) => {
             console.log("room-users event'i alındı, kullanıcı sayısı:", users.length);
             if (users.length === 1) {
                 console.log("İlk kullanıcı odaya katıldı, isInitiator olarak ayarlanıyor");
-                setIsInitiator(true); // İlk kullanıcıya "Başlat" tuşunu gösterir
-                setReceivingCall(false); // İlk kullanıcı olduğunda receivingCall yanlış olmalı
+                setIsInitiator(true); 
+                setReceivingCall(false);
             } else if (users.length === 2) {
                 console.log("İkinci kullanıcı katıldı, receivingCall ayarlanıyor");
                 setIsInitiator(false);
-                setReceivingCall(true); // İkinci kullanıcıya "Katıl" tuşunu gösterir
+                setReceivingCall(true); 
             }
         });
 
-        // Yerel video akışını başlatma
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
@@ -63,7 +61,7 @@ const VideoChat = () => {
             setStream(stream);
             if (myVideo.current) {
                 myVideo.current.srcObject = stream;
-                console.log("Yerel video akışı başarıyla ayarlandı:", myVideo.current.srcObject);
+                console.log("Yerel video akışı başarıyla myVideo referansına bağlandı:", myVideo.current.srcObject);
             }
         }).catch((error) => {
             console.error("Video akışı başlatılamadı:", error);
@@ -101,12 +99,15 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            if (myVideo.current) {
-                myVideo.current.srcObject = userStream;
+            // Başlatan kullanıcı için karşı tarafın görüntüsünü userVideo referansına bağlayın
+            if (userVideo.current) {
+                userVideo.current.srcObject = userStream;
+                console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
             }
         });
 
         connectionRef.current = peer;
+        console.log("Görüşme başlatıldı, yerel akış peer nesnesine gönderildi:", stream);
     };
 
     const answerCall = () => {
@@ -119,21 +120,10 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
+            // Katılan kullanıcı için karşı tarafın görüntüsünü userVideo referansına bağlayın
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
-            } else{
-                navigator.mediaDevices.getUserMedia({
-                    video: { width: 1280, height: 720 },
-                    audio: true
-                }).then((stream) => {
-                    setStream(stream);
-                    if (userVideo.current) {
-                        userVideo.current.srcObject = stream;
-                        console.log("Yerel video akışı başarıyla ayarlandı:", userVideo.current.srcObject);
-                    }
-                }).catch((error) => {
-                    console.error("Video akışı başlatılamadı:", error);
-                });
+                console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
             }
         });
 
@@ -143,6 +133,7 @@ const VideoChat = () => {
 
         peer.signal(callerSignal);
         connectionRef.current = peer;
+        console.log("Çağrı kabul edildi, karşı tarafın video akışı peer nesnesine gönderildi.");
     };
 
     const toggleCamera = () => {
@@ -193,7 +184,6 @@ const VideoChat = () => {
             </div>
 
             <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {/* Butonları gösteren koşullu render */}
                 {!callStarted && !callAccepted && (
                     isInitiator ? (
                         <Button variant="contained" color="primary" onClick={initiateCall}>
