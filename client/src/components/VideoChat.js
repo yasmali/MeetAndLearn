@@ -192,16 +192,25 @@ const VideoChat = () => {
     const toggleCamera = async () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
+            
             if (cameraEnabled) {
-                videoTrack.enabled = false;
+                videoTrack.enabled = false; // Kamerayı kapat
                 setCameraEnabled(false);
             } else {
-                videoTrack.enabled = true;
+                videoTrack.enabled = true; // Kamerayı aç
                 setCameraEnabled(true);
+    
+                // Kamera açıldığında myVideo referansını güncelle
+                if (myVideo.current) {
+                    myVideo.current.srcObject = stream;
+                }
             }
+            
+            // Kamera durumunu diğer kullanıcıya bildir
             socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
         }
     };
+    
 
     // Mikrofon açma/kapama işlevi
     const toggleMicrophone = () => {
