@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
-import { IconButton, Dialog, DialogTitle, DialogContent } from '@mui/material';
+import { IconButton } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
@@ -21,12 +21,12 @@ const VideoChat = () => {
     const [roomFull, setRoomFull] = useState(false);
     const [mySocketId, setMySocketId] = useState(null);
     const [otherUsers, setOtherUsers] = useState([]);
-    const [dialogOpen, setDialogOpen] = useState(false);
 
     const myVideo = useRef();
     const userVideos = useRef({});
     const peersRef = useRef({});
 
+    // Kamera akışını başlat
     const startVideoStream = async () => {
         try {
             const currentStream = await navigator.mediaDevices.getUserMedia({
@@ -41,12 +41,14 @@ const VideoChat = () => {
         }
     };
 
+    // Kamera akışını videoya bağla
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
         }
     }, [stream]);
 
+    // Yeni bir peer bağlantısı oluştur (mevcut kullanıcı için)
     const createPeer = (userToSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: true,
@@ -70,6 +72,7 @@ const VideoChat = () => {
         return peer;
     };
 
+    // Gelen bir peer bağlantısı oluştur (katılan kullanıcı için)
     const addPeer = (incomingSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: false,
@@ -96,13 +99,12 @@ const VideoChat = () => {
             } catch (error) {
                 console.error("Peer sinyal hatası:", error);
             }
-        } else {
-            console.log("Sinyal eksik: incomingSignal null olarak geldi");
         }
 
         return peer;
     };
 
+    // Kullanıcıların bağlantılarını ve sinyalleşmelerini başlat
     useEffect(() => {
         socket.on('connect', () => {
             setMySocketId(socket.id);
@@ -123,21 +125,29 @@ const VideoChat = () => {
                 setOtherUsers(peers);
             });
 
-            // Yeni bir kullanıcı katıldığında `user-joined` olayı tetiklenir
+            // Yeni bir kullanıcı katıldığında peer başlat
             socket.on('user-joined', payload => {
                 console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
-                const peer = addPeer(null, payload.callerId, currentStream); // Sinyal yerine null gönder
+                const peer = addPeer(null, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
             });
 
-            // Kullanıcıya sinyal gönderildiğinde `receiving-returned-signal` olayını dinle
+            // İlk sinyali al ve bağlantıyı tamamla
+            socket.on("receiving-signal", payload => {
+                const peer = addPeer(payload.signal, payload.callerId, currentStream);
+                peersRef.current[payload.callerId] = peer;
+            });
+
+            // Karşı taraftan gelen sinyali al ve bağlantıyı tamamla
             socket.on("receiving-returned-signal", payload => {
                 const peer = peersRef.current[payload.id];
-                try {
-                    peer.signal(payload.signal);
-                } catch (error) {
-                    console.error("Peer sinyal hatası:", error);
+                if (payload.signal) {
+                    try {
+                        peer.signal(payload.signal);
+                    } catch (error) {
+                        console.error("Peer sinyal hatası:", error);
+                    }
                 }
             });
         });
@@ -154,6 +164,7 @@ const VideoChat = () => {
         };
     }, [roomId]);
 
+    // Kamera açma/kapama işlevi
     const toggleCamera = async () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
@@ -167,6 +178,7 @@ const VideoChat = () => {
         }
     };
 
+    // Mikrofon açma/kapama işlevi
     const toggleMicrophone = () => {
         if (stream) {
             stream.getAudioTracks()[0].enabled = !microphoneEnabled;
