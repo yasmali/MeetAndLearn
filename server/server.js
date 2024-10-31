@@ -41,12 +41,8 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
 
-        // Odadaki diğer kullanıcılara, yeni kullanıcının katıldığını bildir
-        socket.to(roomId).emit('user-joined', {
-            callerId: socket.id
-        });
+        socket.to(roomId).emit('user-joined', { callerId: socket.id });
 
-        // Mevcut kullanıcıya odadaki diğer kullanıcıların listesini gönder
         const otherUsers = [...room].filter(id => id !== socket.id);
         socket.emit('all-users', otherUsers);
 
@@ -58,7 +54,12 @@ io.on('connection', (socket) => {
             io.to(callerId).emit('receiving-returned-signal', { id: socket.id, signal });
         });
 
+        socket.on("toggle-camera", ({ cameraEnabled, callerId }) => {
+            socket.to(roomId).emit("toggle-camera", { cameraEnabled, callerId });
+        });
+
         socket.on('disconnect', () => {
+            console.log(`Kullanıcı ${socket.id} bağlantıyı kesti`);
             socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
         });
     });

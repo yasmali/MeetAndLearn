@@ -158,6 +158,13 @@ const VideoChat = () => {
                     }
                 }
             });
+
+            // Diğer kullanıcının kamera durumunu dinle
+            socket.on("toggle-camera", ({ cameraEnabled, callerId }) => {
+                if (userVideos.current[callerId]) {
+                    userVideos.current[callerId].current.style.display = cameraEnabled ? "block" : "none";
+                }
+            });
         });
 
         socket.on('room-full', () => {
@@ -165,7 +172,16 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
+        // Sayfa yenilenirken veya kapanırken bağlantıyı kapat
+        const handleBeforeUnload = () => {
+            socket.emit("user-disconnected", { socketId: mySocketId });
+            socket.disconnect();
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
         return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
             socket.off('connect');
             socket.disconnect();
             Object.values(peersRef.current).forEach(peer => peer.destroy());
@@ -177,12 +193,13 @@ const VideoChat = () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
             if (cameraEnabled) {
-                videoTrack.stop();
+                videoTrack.enabled = false;
                 setCameraEnabled(false);
             } else {
-                await startVideoStream();
+                videoTrack.enabled = true;
                 setCameraEnabled(true);
             }
+            socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
         }
     };
 
