@@ -36,28 +36,24 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
-        // Kullanıcı odaya katıldığında diğer kullanıcıyla bağlantı kurar
-        socket.on('room-users', (users) => {
-            if (users.length > 2) {
-                setRoomFull(true);
-                return;
+        // Yerel video akışını başlatma
+        navigator.mediaDevices.getUserMedia({
+            video: { width: 1280, height: 720 },
+            audio: true
+        }).then((stream) => {
+            setStream(stream);
+            if (myVideo.current) {
+                myVideo.current.srcObject = stream;  // Yerel akışı myVideo'ya bağla
+                console.log("Yerel video akışı başarıyla myVideo'ya bağlandı.");
             }
 
-            // Yerel video akışını başlatma
-            navigator.mediaDevices.getUserMedia({
-                video: { width: 1280, height: 720 },
-                audio: true
-            }).then((stream) => {
-                setStream(stream);
-                if (myVideo.current) {
-                    myVideo.current.srcObject = stream;
-                    console.log("Yerel video akışı başarıyla bağlandı.");
-                }
+            socket.emit('ready', roomId);
 
+            socket.on('ready', () => {
                 // Peer bağlantısını başlat
                 const peer = new Peer({
-                    initiator: users.length === 1,
-                    trickle: true,
+                    initiator: true,
+                    trickle: false,
                     stream: stream
                 });
 
@@ -68,7 +64,7 @@ const VideoChat = () => {
                 peer.on('stream', (userStream) => {
                     if (userVideo.current) {
                         userVideo.current.srcObject = userStream;
-                        console.log("Karşı tarafın video akışı bağlandı.");
+                        console.log("Karşı tarafın video akışı userVideo'ya bağlandı.");
                     }
                 });
 
@@ -77,13 +73,16 @@ const VideoChat = () => {
                 });
 
                 connectionRef.current = peer;
-            }).catch((error) => {
-                console.error("Yerel video akışı alınamadı:", error);
-                alert("Kamera ve mikrofon erişimine izin verildiğinden emin olun.");
             });
+        }).catch((error) => {
+            console.error("Yerel video akışı alınamadı:", error);
+            alert("Kamera ve mikrofon erişimine izin verildiğinden emin olun.");
         });
 
-        return () => socket.disconnect();
+        return () => {
+            socket.disconnect();
+            if (connectionRef.current) connectionRef.current.destroy();
+        };
     }, [roomId]);
 
     const toggleCamera = () => {
