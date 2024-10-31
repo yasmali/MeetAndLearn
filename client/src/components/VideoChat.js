@@ -60,7 +60,12 @@ const VideoChat = () => {
             audio: true
         }).then((stream) => {
             setStream(stream);
-            console.log("Yerel video akışı başarıyla alındı:", stream);
+            if (myVideo.current) {
+                myVideo.current.srcObject = stream;
+                console.log("Yerel video akışı başarıyla myVideo referansına bağlandı:", myVideo.current.srcObject);
+            } else {
+                console.log("myVideo referansı bulunamadı.");
+            }
         }).catch((error) => {
             console.error("Video akışı başlatılamadı:", error);
         });
@@ -88,7 +93,6 @@ const VideoChat = () => {
         return () => socket.disconnect();
     }, [roomId]);
 
-    // stream değiştiğinde myVideo'ya bağlanmasını sağlayan useEffect
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
@@ -108,6 +112,8 @@ const VideoChat = () => {
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
+            } else {
+                console.log("userVideo referansı bulunamadı.");
             }
         });
 
@@ -128,6 +134,8 @@ const VideoChat = () => {
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
                 console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
+            } else {
+                console.log("userVideo referansı bulunamadı.");
             }
         });
 
