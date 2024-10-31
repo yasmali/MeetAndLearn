@@ -24,7 +24,16 @@ const VideoChat = () => {
     const userVideo = useRef();
     const connectionRef = useRef();
 
-    // İlk açılışta kamera akışını başlat ve stream'i myVideo'ya ata
+    // Kamera durumunu güncelleyen bir işlev
+    const updateCameraStatus = (enabled) => {
+        if (stream) {
+            stream.getVideoTracks()[0].enabled = enabled;
+            setCameraEnabled(enabled);
+            socket.emit('camera-toggled', { roomId, cameraEnabled: enabled });
+        }
+    };
+
+    // İlk açılışta yerel video akışını başlat
     useEffect(() => {
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
@@ -36,11 +45,9 @@ const VideoChat = () => {
                 console.log("Yerel video akışı myVideo'ya başarıyla bağlandı.");
             }
 
-            // Odaya katıldığını bildir
             socket.emit('join-room', roomId);
             socket.emit('ready', roomId);
 
-            // Diğer kullanıcı hazır olduğunda peer bağlantısını başlat
             socket.on('ready', () => {
                 const peer = new Peer({
                     initiator: true,
@@ -79,13 +86,21 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
+        // Diğer kullanıcı kamerayı açıp kapattığında güncelle
+        socket.on('camera-toggled', ({ cameraEnabled }) => {
+            setCameraEnabled(cameraEnabled);
+            if (stream) {
+                stream.getVideoTracks()[0].enabled = cameraEnabled;
+            }
+        });
+
         return () => {
             socket.disconnect();
             if (connectionRef.current) connectionRef.current.destroy();
         };
     }, [roomId]);
 
-    // stream değiştiğinde myVideo'ya bağla
+    // stream güncellendiğinde myVideo'ya bağla
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
@@ -94,10 +109,7 @@ const VideoChat = () => {
     }, [stream]);
 
     const toggleCamera = () => {
-        if (stream) {
-            stream.getVideoTracks()[0].enabled = !cameraEnabled;
-            setCameraEnabled(!cameraEnabled);
-        }
+        updateCameraStatus(!cameraEnabled);
     };
 
     const toggleMicrophone = () => {
