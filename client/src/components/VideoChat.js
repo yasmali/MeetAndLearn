@@ -21,6 +21,7 @@ const VideoChat = () => {
     const [roomFull, setRoomFull] = useState(false);
     const [mySocketId, setMySocketId] = useState(null);
     const [otherUsers, setOtherUsers] = useState([]);
+    const [otherCameraEnabled, setOtherCameraEnabled] = useState(true); // Diğer kullanıcının kamera durumu
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -34,6 +35,7 @@ const VideoChat = () => {
                 audio: true,
             });
             setStream(currentStream);
+            if (myVideo.current) myVideo.current.srcObject = currentStream;
             return currentStream;
         } catch (error) {
             console.error("Video akışı başlatılamadı:", error);
@@ -41,14 +43,14 @@ const VideoChat = () => {
         }
     };
 
-    // Kamera akışını videoya bağla
+    // İlk video akışını ayarla
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
         }
     }, [stream]);
 
-    // Yeni bir peer bağlantısı oluştur (mevcut kullanıcı için)
+    // Yeni bir peer bağlantısı oluştur
     const createPeer = (userToSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: true,
@@ -72,7 +74,7 @@ const VideoChat = () => {
         return peer;
     };
 
-    // Gelen bir peer bağlantısı oluştur (katılan kullanıcı için)
+    // Gelen bir peer bağlantısı oluştur
     const addPeer = (incomingSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: false,
@@ -104,7 +106,7 @@ const VideoChat = () => {
         return peer;
     };
 
-    // Kullanıcıların bağlantılarını ve sinyalleşmelerini başlat
+    // Bağlantıyı başlat
     useEffect(() => {
         socket.on('connect', () => {
             setMySocketId(socket.id);
@@ -114,11 +116,10 @@ const VideoChat = () => {
         startVideoStream().then((currentStream) => {
             socket.emit('join-room', { roomId });
 
-            // Odaya katılmış diğer kullanıcıların listesini al ve bağlantı başlat
+            // Odaya katılmış kullanıcıları al ve bağlantıyı başlat
             socket.on('all-users', users => {
                 const peers = [];
                 users.forEach(userId => {
-                    // userVideos referansı ayarlanıyor
                     if (!userVideos.current[userId]) {
                         userVideos.current[userId] = React.createRef();
                     }
@@ -129,10 +130,8 @@ const VideoChat = () => {
                 setOtherUsers(peers);
             });
 
-            // Yeni bir kullanıcı katıldığında peer başlat
+            // Yeni kullanıcı katıldığında peer oluştur
             socket.on('user-joined', payload => {
-                console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
-                // userVideos referansı ayarlanıyor
                 if (!userVideos.current[payload.callerId]) {
                     userVideos.current[payload.callerId] = React.createRef();
                 }
@@ -141,13 +140,13 @@ const VideoChat = () => {
                 setOtherUsers(users => [...users, payload.callerId]);
             });
 
-            // İlk sinyali al ve bağlantıyı tamamla
+            // Gelen sinyali işleyerek bağlantıyı tamamla
             socket.on("receiving-signal", payload => {
                 const peer = addPeer(payload.signal, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
             });
 
-            // Karşı taraftan gelen sinyali al ve bağlantıyı tamamla
+            // Gelen sinyali işleyerek bağlantıyı tamamla
             socket.on("receiving-returned-signal", payload => {
                 const peer = peersRef.current[payload.id];
                 if (payload.signal) {
@@ -161,18 +160,14 @@ const VideoChat = () => {
 
             // Diğer kullanıcının kamera durumunu dinle
             socket.on("toggle-camera", ({ cameraEnabled, callerId }) => {
+                setOtherCameraEnabled(cameraEnabled); // Durumu kaydedin
                 if (userVideos.current[callerId]) {
                     userVideos.current[callerId].current.style.display = cameraEnabled ? "block" : "none";
                 }
             });
         });
 
-        socket.on('room-full', () => {
-            setRoomFull(true);
-            console.log("Oda dolu uyarısı alındı.");
-        });
-
-        // Sayfa yenilenirken veya kapanırken bağlantıyı kapat
+        // Bağlantıyı kapat
         const handleBeforeUnload = () => {
             socket.emit("user-disconnected", { socketId: mySocketId });
             socket.disconnect();
@@ -190,27 +185,16 @@ const VideoChat = () => {
 
     // Kamera açma/kapama işlevi
     const toggleCamera = async () => {
-        if (stream) {
-            const videoTrack = stream.getVideoTracks()[0];
-            
-            if (cameraEnabled) {
-                videoTrack.enabled = false; // Kamerayı kapat
-                setCameraEnabled(false);
-            } else {
-                videoTrack.enabled = true; // Kamerayı aç
-                setCameraEnabled(true);
-    
-                // Kamera açıldığında myVideo referansını güncelle
-                if (myVideo.current) {
-                    myVideo.current.srcObject = stream;
-                }
-            }
-            
-            // Kamera durumunu diğer kullanıcıya bildir
-            socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
+        if (cameraEnabled) {
+            stream.getVideoTracks()[0].stop();
+            setCameraEnabled(false);
+        } else {
+            const newStream = await startVideoStream();
+            setStream(newStream);
+            setCameraEnabled(true);
         }
+        socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
     };
-    
 
     // Mikrofon açma/kapama işlevi
     const toggleMicrophone = () => {
@@ -230,16 +214,18 @@ const VideoChat = () => {
                 
                 <div style={{ width: '100%', height: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden' }}>
                     {otherUsers.map(userId => (
-                        <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div key={userId} style={{ position: 'relative' }}>
+                            <video ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', display: otherCameraEnabled ? "block" : "none" }} />
+                            {!otherCameraEnabled && (
+                                <NoCameraIcon style={{ fontSize: 80, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                            )}
+                        </div>
                     ))}
                 </div>
 
                 <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '250px', height: '175px', border: '2px solid #fff', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#000' }}>
-                    {stream && cameraEnabled ? (
-                        <>
-                            <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <div style={{ fontSize: '14px', position: 'absolute', top: '5px', right: '5px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '2px 5px', borderRadius: '5px' }}>{mySocketId}</div>
-                        </>
+                    {cameraEnabled && stream ? (
+                        <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                         <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
                     )}
