@@ -24,28 +24,28 @@ const VideoChat = () => {
     const userVideo = useRef();
     const connectionRef = useRef();
 
+    // İlk açılışta kamera akışını başlat ve stream'i myVideo'ya ata
     useEffect(() => {
-        // Yerel video akışını başlatma
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
-        }).then((stream) => {
-            setStream(stream);
+        }).then((currentStream) => {
+            setStream(currentStream);
             if (myVideo.current) {
-                myVideo.current.srcObject = stream;  // Yerel akışı myVideo'ya bağla
-                console.log("Yerel video akışı başarıyla myVideo'ya bağlandı.");
+                myVideo.current.srcObject = currentStream;
+                console.log("Yerel video akışı myVideo'ya başarıyla bağlandı.");
             }
 
-            // Odaya katıldığını bildir ve peer bağlantısını başlatmak için hazır ol
+            // Odaya katıldığını bildir
             socket.emit('join-room', roomId);
             socket.emit('ready', roomId);
 
+            // Diğer kullanıcı hazır olduğunda peer bağlantısını başlat
             socket.on('ready', () => {
-                // Peer bağlantısını başlat
                 const peer = new Peer({
                     initiator: true,
                     trickle: false,
-                    stream: stream
+                    stream: currentStream
                 });
 
                 peer.on('signal', (data) => {
@@ -84,6 +84,14 @@ const VideoChat = () => {
             if (connectionRef.current) connectionRef.current.destroy();
         };
     }, [roomId]);
+
+    // stream değiştiğinde myVideo'ya bağla
+    useEffect(() => {
+        if (stream && myVideo.current) {
+            myVideo.current.srcObject = stream;
+            console.log("Stream myVideo'ya bağlandı.");
+        }
+    }, [stream]);
 
     const toggleCamera = () => {
         if (stream) {
