@@ -30,32 +30,32 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
+        socket.emit('join-room', roomId);
+
         socket.on('connect', () => {
             console.log('Socket.IO bağlantısı kuruldu:', socket.id);
         });
-    
-        socket.on('disconnect', () => {
-            console.log('Socket.IO bağlantısı koptu');
-        });
-
-        socket.emit('join-room', roomId);
 
         socket.on('room-full', () => {
             setRoomFull(true);
+            console.log("Oda dolu uyarısı alındı.");
         });
 
-        // Sunucudan gelen room-users eventini işleyin
+        // Sunucudan gelen room-users event'ini işleyin
         socket.on('room-users', (users) => {
-            console.log("Odadaki kullanıcılar:", users);
+            console.log("room-users event'i alındı, kullanıcı sayısı:", users.length);
             if (users.length === 1) {
                 console.log("İlk kullanıcı odaya katıldı, isInitiator olarak ayarlanıyor");
                 setIsInitiator(true); // İlk kullanıcıya "Başlat" tuşunu gösterir
-            } else {
+                setReceivingCall(false); // İlk kullanıcı olduğunda receivingCall yanlış olmalı
+            } else if (users.length === 2) {
                 console.log("İkinci kullanıcı katıldı, receivingCall ayarlanıyor");
+                setIsInitiator(false);
                 setReceivingCall(true); // İkinci kullanıcıya "Katıl" tuşunu gösterir
             }
         });
 
+        // Yerel video akışını başlatma
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
             audio: true
@@ -63,7 +63,10 @@ const VideoChat = () => {
             setStream(stream);
             if (myVideo.current) {
                 myVideo.current.srcObject = stream;
+                console.log("Yerel video akışı başarıyla ayarlandı:", myVideo.current.srcObject);
             }
+        }).catch((error) => {
+            console.error("Video akışı başlatılamadı:", error);
         });
 
         socket.on('offer', (data) => {
