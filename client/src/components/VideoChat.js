@@ -20,12 +20,12 @@ const VideoChat = () => {
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
     const [mySocketId, setMySocketId] = useState(null);
-    const [otherSocketId, setOtherSocketId] = useState(null);
+    const [otherUsers, setOtherUsers] = useState([]);
     const [dialogOpen, setDialogOpen] = useState(false);
 
     const myVideo = useRef();
-    const userVideo = useRef();
-    const connectionRef = useRef();
+    const userVideos = useRef({});
+    const peersRef = useRef({});
 
     const startVideoStream = async () => {
         try {
@@ -47,22 +47,50 @@ const VideoChat = () => {
         }
     }, [stream]);
 
-    const createPeerConnection = (currentStream, initiator) => {
+    const createPeer = (userToSignal, callerId, stream) => {
         const peer = new Peer({
-            initiator: initiator,
+            initiator: true,
             trickle: false,
-            stream: currentStream,
+            stream
         });
 
-        peer.on('signal', (data) => {
-            socket.emit(initiator ? 'sending-signal' : 'returning-signal', { signal: data, roomId });
+        peer.on("signal", signal => {
+            socket.emit("sending-signal", { userToSignal, callerId, signal });
         });
 
-        peer.on('stream', (userStream) => {
-            if (userVideo.current) {
-                userVideo.current.srcObject = userStream;
+        peer.on("stream", userStream => {
+            if (!userVideos.current[userToSignal]) {
+                userVideos.current[userToSignal] = React.createRef();
+            }
+            if (userVideos.current[userToSignal].current) {
+                userVideos.current[userToSignal].current.srcObject = userStream;
             }
         });
+
+        return peer;
+    };
+
+    const addPeer = (incomingSignal, callerId, stream) => {
+        const peer = new Peer({
+            initiator: false,
+            trickle: false,
+            stream
+        });
+
+        peer.on("signal", signal => {
+            socket.emit("returning-signal", { signal, callerId });
+        });
+
+        peer.on("stream", userStream => {
+            if (!userVideos.current[callerId]) {
+                userVideos.current[callerId] = React.createRef();
+            }
+            if (userVideos.current[callerId].current) {
+                userVideos.current[callerId].current.srcObject = userStream;
+            }
+        });
+
+        peer.signal(incomingSignal);
 
         return peer;
     };
@@ -76,27 +104,25 @@ const VideoChat = () => {
         startVideoStream().then((currentStream) => {
             socket.emit('join-room', { roomId });
 
-            socket.on('user-joined', (data) => {
-                setOtherSocketId(data.socketId);
-                setDialogOpen(true);
-
-                // Gelen kullanıcıya sinyal gönder
-                const peer = createPeerConnection(currentStream, true);
-                connectionRef.current = peer;
-
-                peer.on('signal', (signalData) => {
-                    socket.emit('sending-signal', { signal: signalData, to: data.socketId });
+            socket.on('all-users', users => {
+                const peers = [];
+                users.forEach(userId => {
+                    const peer = createPeer(userId, socket.id, currentStream);
+                    peersRef.current[userId] = peer;
+                    peers.push(userId);
                 });
+                setOtherUsers(peers);
             });
 
-            socket.on('receiving-signal', (data) => {
-                const peer = createPeerConnection(currentStream, false);
-                connectionRef.current = peer;
-                peer.signal(data.signal);
+            socket.on('user-joined', payload => {
+                const peer = addPeer(payload.signal, payload.callerId, currentStream);
+                peersRef.current[payload.callerId] = peer;
+                setOtherUsers(users => [...users, payload.callerId]);
             });
 
-            socket.on('returning-signal', (data) => {
-                connectionRef.current.signal(data.signal);
+            socket.on("receiving-returned-signal", payload => {
+                const item = peersRef.current[payload.id];
+                item.signal(payload.signal);
             });
         });
 
@@ -105,17 +131,10 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
-        socket.on('camera-toggled', ({ cameraEnabled }) => {
-            setCameraEnabled(cameraEnabled);
-            if (stream) {
-                stream.getVideoTracks()[0].enabled = cameraEnabled;
-            }
-        });
-
         return () => {
             socket.off('connect');
             socket.disconnect();
-            if (connectionRef.current) connectionRef.current.destroy();
+            Object.values(peersRef.current).forEach(peer => peer.destroy());
         };
     }, [roomId]);
 
@@ -148,14 +167,9 @@ const VideoChat = () => {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '90%', maxWidth: '1100px', height: '80vh', maxHeight: '700px', position: 'relative', backgroundColor: '#222', borderRadius: '10px', padding: '10px', boxShadow: '0px 4px 10px rgba(0,0,0,0.5)' }}>
                 
                 <div style={{ width: '100%', height: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden' }}>
-                    {userVideo.current && userVideo.current.srcObject ? (
-                        <>
-                            <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            {otherSocketId && <div style={{ position: 'absolute', top: '10px', right: '10px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '5px 10px', borderRadius: '5px' }}>{otherSocketId}</div>}
-                        </>
-                    ) : (
-                        <NoCameraIcon style={{ fontSize: 80, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-                    )}
+                    {otherUsers.map(userId => (
+                        <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ))}
                 </div>
 
                 <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '250px', height: '175px', border: '2px solid #fff', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#000' }}>
@@ -178,13 +192,6 @@ const VideoChat = () => {
                     </IconButton>
                 </div>
             </div>
-
-            <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
-                <DialogTitle>Yeni Kullanıcı Katıldı</DialogTitle>
-                <DialogContent>
-                    <p>{otherSocketId} görüşmeye katıldı!</p>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 };
