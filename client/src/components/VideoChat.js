@@ -25,17 +25,6 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
-        socket.emit('join-room', roomId);
-
-        socket.on('connect', () => {
-            console.log('Socket.IO bağlantısı kuruldu:', socket.id);
-        });
-
-        socket.on('room-full', () => {
-            setRoomFull(true);
-            console.log("Oda dolu uyarısı alındı.");
-        });
-
         // Yerel video akışını başlatma
         navigator.mediaDevices.getUserMedia({
             video: { width: 1280, height: 720 },
@@ -47,6 +36,8 @@ const VideoChat = () => {
                 console.log("Yerel video akışı başarıyla myVideo'ya bağlandı.");
             }
 
+            // Odaya katıldığını bildir ve peer bağlantısını başlatmak için hazır ol
+            socket.emit('join-room', roomId);
             socket.emit('ready', roomId);
 
             socket.on('ready', () => {
@@ -77,6 +68,15 @@ const VideoChat = () => {
         }).catch((error) => {
             console.error("Yerel video akışı alınamadı:", error);
             alert("Kamera ve mikrofon erişimine izin verildiğinden emin olun.");
+        });
+
+        socket.on('connect', () => {
+            console.log('Socket.IO bağlantısı kuruldu:', socket.id);
+        });
+
+        socket.on('room-full', () => {
+            setRoomFull(true);
+            console.log("Oda dolu uyarısı alındı.");
         });
 
         return () => {
