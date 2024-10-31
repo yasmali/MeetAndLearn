@@ -101,13 +101,9 @@ const VideoChat = () => {
         });
 
         peer.on('stream', (userStream) => {
-            if (userVideo.current) {
-                userVideo.current.srcObject = userStream;
+            if (myVideo.current) {
+                myVideo.current.srcObject = userStream;
             }
-        });
-
-        peer.on('iceCandidate', (candidate) => {
-            if (candidate) socket.emit('ice-candidate', { candidate, roomId });
         });
 
         connectionRef.current = peer;
