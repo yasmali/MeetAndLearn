@@ -45,10 +45,11 @@ const VideoChat = () => {
                 console.log("Yerel video akışı myVideo'ya başarıyla bağlandı.");
             }
 
+            // Odaya katıldığını bildir
             socket.emit('join-room', roomId);
-            socket.emit('ready', roomId);
 
-            socket.on('ready', () => {
+            // Eğer karşı taraf hazırsa bağlantıyı başlat
+            socket.on('user-joined', () => {
                 const peer = new Peer({
                     initiator: true,
                     trickle: false,
@@ -56,7 +57,7 @@ const VideoChat = () => {
                 });
 
                 peer.on('signal', (data) => {
-                    socket.emit('signal', { signal: data, roomId });
+                    socket.emit('sending-signal', { signal: data, roomId });
                 });
 
                 peer.on('stream', (userStream) => {
@@ -66,10 +67,32 @@ const VideoChat = () => {
                     }
                 });
 
-                socket.on('signal', (data) => {
+                socket.on('receiving-signal', (data) => {
                     peer.signal(data.signal);
                 });
 
+                connectionRef.current = peer;
+            });
+
+            socket.on('receiving-signal', (data) => {
+                const peer = new Peer({
+                    initiator: false,
+                    trickle: false,
+                    stream: currentStream
+                });
+
+                peer.on('signal', (signalData) => {
+                    socket.emit('returning-signal', { signal: signalData, roomId });
+                });
+
+                peer.on('stream', (userStream) => {
+                    if (userVideo.current) {
+                        userVideo.current.srcObject = userStream;
+                        console.log("Karşı tarafın video akışı userVideo'ya bağlandı.");
+                    }
+                });
+
+                peer.signal(data.signal);
                 connectionRef.current = peer;
             });
         }).catch((error) => {
