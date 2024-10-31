@@ -30,6 +30,14 @@ const VideoChat = () => {
     const connectionRef = useRef();
 
     useEffect(() => {
+        socket.on('connect', () => {
+            console.log('Socket.IO bağlantısı kuruldu:', socket.id);
+        });
+    
+        socket.on('disconnect', () => {
+            console.log('Socket.IO bağlantısı koptu');
+        });
+
         socket.emit('join-room', roomId);
 
         socket.on('room-full', () => {
@@ -38,11 +46,12 @@ const VideoChat = () => {
 
         // Sunucudan gelen room-users eventini işleyin
         socket.on('room-users', (users) => {
-            debugger;
             console.log("Odadaki kullanıcılar:", users);
             if (users.length === 1) {
+                console.log("İlk kullanıcı odaya katıldı, isInitiator olarak ayarlanıyor");
                 setIsInitiator(true); // İlk kullanıcıya "Başlat" tuşunu gösterir
             } else {
+                console.log("İkinci kullanıcı katıldı, receivingCall ayarlanıyor");
                 setReceivingCall(true); // İkinci kullanıcıya "Katıl" tuşunu gösterir
             }
         });

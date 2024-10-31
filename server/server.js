@@ -31,9 +31,10 @@ io.on('connection', (socket) => {
     console.log("Yeni bir kullanıcı bağlandı:", socket.id);
 
     socket.on('join-room', (roomId) => {
+        console.log(`join-room event'i alındı, roomId: ${roomId}`); // Bu log event'in ulaşıp ulaşmadığını doğrular
         const room = io.sockets.adapter.rooms.get(roomId) || new Set();
 
-        if (room.size >= 2) {
+        if (room.size > 2) {
             socket.emit('room-full', "Oda dolu, başka bir kullanıcı bağlanamaz.");
             return;
         }
@@ -42,7 +43,8 @@ io.on('connection', (socket) => {
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
 
         // Odaya yeni bir kullanıcı katıldığında veya bir kullanıcı ayrıldığında room-users eventini tetikleyin
-        io.to(roomId).emit('room-users', Array.from(room)); // Odadaki kullanıcıları liste olarak gönder
+        io.to(roomId).emit('room-users', Array.from(io.sockets.adapter.rooms.get(roomId) || []));
+        console.log("room-users event'i gönderildi:", Array.from(io.sockets.adapter.rooms.get(roomId) || []));
 
         socket.on('offer', (data) => {
             socket.to(data.roomId).emit('offer', { signal: data.signal, from: socket.id });
@@ -59,7 +61,10 @@ io.on('connection', (socket) => {
         socket.on('disconnect', () => {
             console.log(`Kullanıcı ${socket.id} odadan ayrıldı: ${roomId}`);
             socket.to(roomId).emit('user-disconnected');
-            io.to(roomId).emit('room-users', Array.from(room)); // Güncellenmiş kullanıcı listesini gönder
+            
+            // Kullanıcı ayrıldığında room-users eventini tekrar gönder
+            io.to(roomId).emit('room-users', Array.from(io.sockets.adapter.rooms.get(roomId) || []));
+            console.log("room-users event'i gönderildi (kullanıcı ayrıldı):", Array.from(io.sockets.adapter.rooms.get(roomId) || []));
         });
     });
 });
