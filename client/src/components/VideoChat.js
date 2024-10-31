@@ -9,7 +9,6 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import NoCameraIcon from '@mui/icons-material/VideocamOff';
 
-// Socket bağlantısını başlat
 const socket = io.connect('https://meetandlearn.onrender.com', {
     transports: ['websocket', 'polling'],
 });
@@ -20,8 +19,8 @@ const VideoChat = () => {
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
-    const [mySocketId, setMySocketId] = useState(null); // Kendi socket.id bilgisi
-    const [otherSocketId, setOtherSocketId] = useState(null); // Diğer kullanıcının socket.id bilgisi
+    const [mySocketId, setMySocketId] = useState(null);
+    const [otherSocketId, setOtherSocketId] = useState(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
     const myVideo = useRef();
@@ -42,7 +41,6 @@ const VideoChat = () => {
         }
     };
 
-    // Stream güncellendiğinde myVideo'ya bağla
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
@@ -79,7 +77,7 @@ const VideoChat = () => {
             socket.emit('join-room', { roomId });
 
             socket.on('user-joined', (data) => {
-                setOtherSocketId(data.socketId); // Diğer kullanıcının socket.id'sini ayarla
+                setOtherSocketId(data.socketId);
                 setDialogOpen(true);
 
                 const peer = createPeerConnection(currentStream, true);
@@ -116,7 +114,6 @@ const VideoChat = () => {
         };
     }, [roomId]);
 
-    // Kamerayı açıp kapatma işlevi
     const toggleCamera = async () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
