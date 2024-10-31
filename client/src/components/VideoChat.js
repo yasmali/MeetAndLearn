@@ -118,6 +118,10 @@ const VideoChat = () => {
             socket.on('all-users', users => {
                 const peers = [];
                 users.forEach(userId => {
+                    // userVideos referansı ayarlanıyor
+                    if (!userVideos.current[userId]) {
+                        userVideos.current[userId] = React.createRef();
+                    }
                     const peer = createPeer(userId, socket.id, currentStream);
                     peersRef.current[userId] = peer;
                     peers.push(userId);
@@ -128,6 +132,10 @@ const VideoChat = () => {
             // Yeni bir kullanıcı katıldığında peer başlat
             socket.on('user-joined', payload => {
                 console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
+                // userVideos referansı ayarlanıyor
+                if (!userVideos.current[payload.callerId]) {
+                    userVideos.current[payload.callerId] = React.createRef();
+                }
                 const peer = addPeer(null, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
