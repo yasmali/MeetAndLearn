@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
-import { IconButton, Button } from '@mui/material';
+import { IconButton } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
@@ -16,14 +16,9 @@ const socket = io.connect('https://meetandlearn.onrender.com', {
 const VideoChat = () => {
     const { roomId } = useParams();
     const [stream, setStream] = useState(null);
-    const [receivingCall, setReceivingCall] = useState(false);
-    const [callerSignal, setCallerSignal] = useState(null);
-    const [callAccepted, setCallAccepted] = useState(false);
     const [cameraEnabled, setCameraEnabled] = useState(true);
     const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
     const [roomFull, setRoomFull] = useState(false);
-    const [isInitiator, setIsInitiator] = useState(false);
-    const [callStarted, setCallStarted] = useState(false);
 
     const myVideo = useRef();
     const userVideo = useRef();
@@ -41,99 +36,55 @@ const VideoChat = () => {
             console.log("Oda dolu uyarısı alındı.");
         });
 
+        // Kullanıcı odaya katıldığında diğer kullanıcıyla bağlantı kurar
         socket.on('room-users', (users) => {
-            console.log("room-users event'i alındı, kullanıcı sayısı:", users.length);
-            if (users.length === 1) {
-                console.log("İlk kullanıcı odaya katıldı, isInitiator olarak ayarlanıyor");
-                setIsInitiator(true); 
-                setReceivingCall(false);
-            } else if (users.length === 2) {
-                console.log("İkinci kullanıcı katıldı, receivingCall ayarlanıyor");
-                setIsInitiator(false);
-                setReceivingCall(true); 
+            if (users.length > 2) {
+                setRoomFull(true);
+                return;
             }
-        });
 
-        // Yerel video akışını başlatma ve hemen myVideo'ya bağlama
-        navigator.mediaDevices.getUserMedia({
-            video: { width: 1280, height: 720 },
-            audio: true
-        }).then((stream) => {
-            setStream(stream);
-            if (myVideo.current) {
-                myVideo.current.srcObject = stream;
-                console.log("Yerel video akışı başarıyla myVideo referansına bağlandı:", myVideo.current.srcObject);
-            }
-        }).catch((error) => {
-            console.error("Video akışı başlatılamadı:", error);
-        });
+            // Yerel video akışını başlatma
+            navigator.mediaDevices.getUserMedia({
+                video: { width: 1280, height: 720 },
+                audio: true
+            }).then((stream) => {
+                setStream(stream);
+                if (myVideo.current) {
+                    myVideo.current.srcObject = stream;
+                    console.log("Yerel video akışı başarıyla bağlandı.");
+                }
 
-        socket.on('offer', (data) => {
-            setReceivingCall(true);
-            setCallerSignal(data.signal);
-        });
+                // Peer bağlantısını başlat
+                const peer = new Peer({
+                    initiator: users.length === 1,
+                    trickle: true,
+                    stream: stream
+                });
 
-        socket.on('answer', (signal) => {
-            setCallAccepted(true);
-            connectionRef.current.signal(signal);
-        });
+                peer.on('signal', (data) => {
+                    socket.emit('signal', { signal: data, roomId });
+                });
 
-        socket.on('ice-candidate', (candidate) => {
-            if (connectionRef.current) connectionRef.current.signal(candidate);
-        });
+                peer.on('stream', (userStream) => {
+                    if (userVideo.current) {
+                        userVideo.current.srcObject = userStream;
+                        console.log("Karşı tarafın video akışı bağlandı.");
+                    }
+                });
 
-        socket.on('user-disconnected', () => {
-            if (userVideo.current) {
-                userVideo.current.srcObject = null;
-            }
+                socket.on('signal', (data) => {
+                    peer.signal(data.signal);
+                });
+
+                connectionRef.current = peer;
+            }).catch((error) => {
+                console.error("Yerel video akışı alınamadı:", error);
+                alert("Kamera ve mikrofon erişimine izin verildiğinden emin olun.");
+            });
         });
 
         return () => socket.disconnect();
     }, [roomId]);
-
-    const initiateCall = () => {
-        setCallStarted(true);
-        const peer = new Peer({ initiator: true, trickle: true, stream });
-
-        peer.on('signal', (data) => {
-            socket.emit('offer', { signal: data, roomId });
-        });
-
-        peer.on('stream', (userStream) => {
-            if (userVideo.current) {
-                userVideo.current.srcObject = userStream;
-                console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
-            }
-        });
-
-        connectionRef.current = peer;
-        console.log("Görüşme başlatıldı, yerel akış peer nesnesine gönderildi:", stream);
-    };
-
-    const answerCall = () => {
-        setCallAccepted(true);
-        setCallStarted(true);
-        const peer = new Peer({ initiator: false, trickle: true, stream });
-
-        peer.on('signal', (data) => {
-            socket.emit('answer', { signal: data, roomId });
-        });
-
-        peer.on('stream', (userStream) => {
-            if (userVideo.current) {
-                userVideo.current.srcObject = userStream;
-                console.log("Karşı tarafın video akışı userVideo referansına bağlandı:", userVideo.current.srcObject);
-            }
-        });
-
-        peer.on('iceCandidate', (candidate) => {
-            if (candidate) socket.emit('ice-candidate', { candidate, roomId });
-        });
-
-        peer.signal(callerSignal);
-        connectionRef.current = peer;
-        console.log("Çağrı kabul edildi, karşı tarafın video akışı peer nesnesine gönderildi.");
-    };
 
     const toggleCamera = () => {
         if (stream) {
@@ -165,7 +116,7 @@ const VideoChat = () => {
                 </div>
 
                 <div style={{ width: '48%', height: '100%', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px solid #333', borderRadius: '10px' }}>
-                    {callAccepted ? (
+                    {userVideo.current && userVideo.current.srcObject ? (
                         <video ref={userVideo} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
                     ) : (
                         <NoCameraIcon style={{ fontSize: 80, color: '#fff' }} />
@@ -180,22 +131,6 @@ const VideoChat = () => {
                 <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
                     {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
                 </IconButton>
-            </div>
-
-            <div style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-                {!callStarted && !callAccepted && (
-                    isInitiator ? (
-                        <Button variant="contained" color="primary" onClick={initiateCall}>
-                            Başlat
-                        </Button>
-                    ) : (
-                        receivingCall && (
-                            <Button variant="contained" color="secondary" onClick={answerCall}>
-                                Katıl
-                            </Button>
-                        )
-                    )
-                )}
             </div>
         </div>
     );
