@@ -190,26 +190,30 @@ const VideoChat = () => {
 
     // Kamera açma/kapama işlevi
     const toggleCamera = async () => {
-        if (stream) {
-            const videoTrack = stream.getVideoTracks()[0];
-            
-            if (cameraEnabled) {
-                videoTrack.enabled = false; // Kamerayı kapat
-                setCameraEnabled(false);
-            } else {
-                videoTrack.enabled = true; // Kamerayı aç
-                setCameraEnabled(true);
+        if (cameraEnabled) {
+            stream.getVideoTracks()[0].stop();
+            setCameraEnabled(false);
+        } else {
+            const newStream = await startVideoStream();
+            setStream(newStream);
+            setCameraEnabled(true);
     
-                // Kamera açıldığında myVideo referansını güncelle
+            // Kamera açıldığında myVideo referansını güncelle
+            setTimeout(() => {
                 if (myVideo.current) {
-                    myVideo.current.srcObject = stream;
+                    myVideo.current.srcObject = newStream;
                 }
-            }
-            
-            // Kamera durumunu diğer kullanıcıya bildir
-            socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
+            }, 100);
         }
+        socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
     };
+    
+    // Kamera durumu değiştiğinde myVideo referansını güncellemek için useEffect
+    useEffect(() => {
+        if (cameraEnabled && stream && myVideo.current) {
+            myVideo.current.srcObject = stream;
+        }
+    }, [cameraEnabled, stream]);
     
 
     // Mikrofon açma/kapama işlevi
