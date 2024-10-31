@@ -121,6 +121,19 @@ const VideoChat = () => {
         peer.on('stream', (userStream) => {
             if (userVideo.current) {
                 userVideo.current.srcObject = userStream;
+            } else{
+                navigator.mediaDevices.getUserMedia({
+                    video: { width: 1280, height: 720 },
+                    audio: true
+                }).then((stream) => {
+                    setStream(stream);
+                    if (userVideo.current) {
+                        userVideo.current.srcObject = stream;
+                        console.log("Yerel video akışı başarıyla ayarlandı:", userVideo.current.srcObject);
+                    }
+                }).catch((error) => {
+                    console.error("Video akışı başlatılamadı:", error);
+                });
             }
         });
 
