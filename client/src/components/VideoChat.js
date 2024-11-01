@@ -8,10 +8,7 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import NoCameraIcon from '@mui/icons-material/VideocamOff';
-
-const socket = io.connect('https://meetandlearn.onrender.com', {
-    transports: ['websocket', 'polling'],
-});
+import socket from '../socket.js';
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -106,6 +103,10 @@ const VideoChat = () => {
 
     // Kullanıcıların bağlantılarını ve sinyalleşmelerini başlat
     useEffect(() => {
+        if (!socket.connected) {
+            socket.connect();
+        }
+
         socket.on('connect', () => {
             setMySocketId(socket.id);
             console.log('Socket.IO bağlantısı kuruldu:', socket.id);
@@ -184,13 +185,13 @@ const VideoChat = () => {
                 setOtherUsers(users => users.filter(user => user !== socketId));
             }
         });
-        
+
         window.addEventListener("beforeunload", handleBeforeUnload);
 
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
             socket.off('connect');
-            socket.disconnect();
+            //socket.disconnect();
             Object.values(peersRef.current).forEach(peer => peer.destroy());
         };
     }, [roomId]);
