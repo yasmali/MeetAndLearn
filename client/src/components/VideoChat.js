@@ -130,13 +130,13 @@ const VideoChat = () => {
             });
 
             // Yeni bir kullanıcı katıldığında peer başlat
-            socket.on("user-joined", (payload) => {
+            socket.on('user-joined', payload => {
                 console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
+                // userVideos referansı ayarlanıyor
                 if (!userVideos.current[payload.callerId]) {
                     userVideos.current[payload.callerId] = React.createRef();
                 }
-
-                const peer = addPeer(payload.incomingSignal, payload.callerId, stream);
+                const peer = addPeer(null, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
             });
@@ -184,7 +184,7 @@ const VideoChat = () => {
                 setOtherUsers(users => users.filter(user => user !== socketId));
             }
         });
-
+        
         window.addEventListener("beforeunload", handleBeforeUnload);
 
         return () => {
