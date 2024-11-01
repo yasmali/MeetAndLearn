@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
-import { IconButton } from '@mui/material';
+import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
@@ -18,12 +18,13 @@ const VideoChat = () => {
     const [roomFull, setRoomFull] = useState(false);
     const [mySocketId, setMySocketId] = useState(null);
     const [otherUsers, setOtherUsers] = useState([]);
+    const [messages, setMessages] = useState([]);
+    const [message, setMessage] = useState('');
 
     const myVideo = useRef();
     const userVideos = useRef({});
     const peersRef = useRef({});
 
-    // Kamera akışını başlat
     const startVideoStream = async () => {
         try {
             const currentStream = await navigator.mediaDevices.getUserMedia({
@@ -38,14 +39,12 @@ const VideoChat = () => {
         }
     };
 
-    // Kamera akışını videoya bağla
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
         }
     }, [stream]);
 
-    // Yeni bir peer bağlantısı oluştur (mevcut kullanıcı için)
     const createPeer = (userToSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: true,
@@ -69,7 +68,6 @@ const VideoChat = () => {
         return peer;
     };
 
-    // Gelen bir peer bağlantısı oluştur (katılan kullanıcı için)
     const addPeer = (incomingSignal, callerId, stream) => {
         const peer = new Peer({
             initiator: false,
@@ -94,29 +92,26 @@ const VideoChat = () => {
             try {
                 peer.signal(incomingSignal);
             } catch (error) {
-                console.error("Peer sinyal hatası:", error);
+                console.error("Peer signal error:", error);
             }
         }
 
         return peer;
     };
 
-    // Kullanıcıların bağlantılarını ve sinyalleşmelerini başlat
     useEffect(() => {
         if (!socket.connected) {
             socket.connect();
             setMySocketId(socket.id);
-            console.log('Socket.IO bağlantısı kuruldu:', socket.id);
+            console.log('Socket.IO connection established:', socket.id);
         }
 
         startVideoStream().then((currentStream) => {
             socket.emit('join-room', { roomId });
 
-            // Odaya katılmış diğer kullanıcıların listesini al ve bağlantı başlat
             socket.on('all-users', users => {
                 const peers = [];
                 users.forEach(userId => {
-                    // userVideos referansı ayarlanıyor
                     if (!userVideos.current[userId]) {
                         userVideos.current[userId] = React.createRef();
                     }
@@ -129,8 +124,7 @@ const VideoChat = () => {
 
             // Yeni bir kullanıcı katıldığında peer başlat
             socket.on('user-joined', payload => {
-                console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
-                // userVideos referansı ayarlanıyor
+                console.log("New user joined:", payload.callerId);
                 if (!userVideos.current[payload.callerId]) {
                     userVideos.current[payload.callerId] = React.createRef();
                 }
@@ -152,7 +146,7 @@ const VideoChat = () => {
                     try {
                         peer.signal(payload.signal);
                     } catch (error) {
-                        console.error("Peer sinyal hatası:", error);
+                        console.error("Peer signal error:", error);
                     }
                 }
             });
@@ -163,11 +157,14 @@ const VideoChat = () => {
                     userVideos.current[callerId].current.style.display = cameraEnabled ? "block" : "none";
                 }
             });
+
+            socket.on('chat-message', ({ message, sender }) => {
+                setMessages((prevMessages) => [...prevMessages, { sender, message }]);
+            });
         });
 
         socket.on('room-full', () => {
             setRoomFull(true);
-            console.log("Oda dolu uyarısı alındı.");
         });
 
         // Sayfa yenilenirken veya kapanırken bağlantıyı kapat
@@ -196,6 +193,7 @@ const VideoChat = () => {
             socket.off("toggle-camera");
             socket.off("room-full");
             socket.off("user-disconnected");
+            socket.off("chat-message");
 
             // Peer bağlantılarını kapat
             Object.values(peersRef.current).forEach(peer => peer.destroy());
@@ -229,7 +227,7 @@ const VideoChat = () => {
             socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
         }
     };
-    
+
     // Kamera durumu değiştiğinde myVideo referansını güncellemek için useEffect
     useEffect(() => {
         if (cameraEnabled && stream && myVideo.current) {
@@ -237,7 +235,7 @@ const VideoChat = () => {
         }
     }, [cameraEnabled, stream]);
 
-    // Mikrofon açma/kapama işlevi
+ // Mikrofon açma/kapama işlevi
     const toggleMicrophone = () => {
         if (stream) {
             stream.getAudioTracks()[0].enabled = !microphoneEnabled;
@@ -245,41 +243,83 @@ const VideoChat = () => {
         }
     };
 
+    const sendMessage = () => {
+        if (message.trim()) {
+            const sender = mySocketId;
+            socket.emit('chat-message', { message, sender });
+            setMessages((prevMessages) => [...prevMessages, { sender: 'You', message }]);
+            setMessage('');
+        }
+    };
+
+    // Enter tuşu ile mesaj gönderme işlevi
+    const handleKeyPress = (event) => {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    };
+
     if (roomFull) {
-        return <h1>Oda dolu. Başka bir kullanıcı bağlanamaz.</h1>;
+        return <h1>Room is full. You cannot connect to this room!</h1>;
     }
 
     return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#333' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '90%', maxWidth: '1100px', height: '80vh', maxHeight: '700px', position: 'relative', backgroundColor: '#222', borderRadius: '10px', padding: '10px', boxShadow: '0px 4px 10px rgba(0,0,0,0.5)' }}>
-                
-                <div style={{ width: '100%', height: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden' }}>
-                    {otherUsers.map(userId => (
-                        <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ))}
-                </div>
+        // Ana kapsayıcı Box - Ekranın ortasında ortalanmış düzen
+        <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
+            <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
+                {/* Büyük video çerçevesi */}
+                <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
+                    <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
+                        {otherUsers.map(userId => (
+                            <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ))}
+                    </Box>
+                    <Box position="absolute" bottom="10px" right="10px" width="250px" height="175px" border="2px solid #fff" borderRadius="10px" overflow="hidden" bgcolor="#000">
+                        {stream && cameraEnabled ? (
+                            <>
+                                <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <Typography variant="caption" style={{ position: 'absolute', top: '5px', right: '5px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '2px 5px', borderRadius: '5px' }}>{mySocketId}</Typography>
+                            </>
+                        ) : (
+                            <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                        )}
+                    </Box>
+                    <Box position="absolute" bottom="10px" left="50%" transform="translateX(-50%)" display="flex" gap="15px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
+                        <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
+                            {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+                        </IconButton>
+                        <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
+                            {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
+                        </IconButton>
+                    </Box>
+                </Box>
 
-                <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '250px', height: '175px', border: '2px solid #fff', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#000' }}>
-                    {stream && cameraEnabled ? (
-                        <>
-                            <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <div style={{ fontSize: '14px', position: 'absolute', top: '5px', right: '5px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '2px 5px', borderRadius: '5px' }}>{mySocketId}</div>
-                        </>
-                    ) : (
-                        <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-                    )}
-                </div>
-
-                <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
-                    <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
-                        {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                    </IconButton>
-                    <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
-                        {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
-                    </IconButton>
-                </div>
-            </div>
-        </div>
+                {/* Sohbet Bölümü */}
+                <Box width="30%" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)">
+                    <Typography variant="h6" color="white" mb={2}>Live Chat</Typography>
+                    <List style={{ height: '70%', overflowY: 'auto', color: 'white' }}>
+                        {messages.map((msg, index) => (
+                            <ListItem key={index}>
+                                <ListItemText primary={`${msg.sender}: ${msg.message}`} />
+                            </ListItem>
+                        ))}
+                    </List>
+                    <Box display="flex" mt={2}>
+                        <TextField
+                            variant="outlined"
+                            placeholder="Type a message..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyPress={handleKeyPress} // Enter tuşu için olay ekleyin
+                            fullWidth
+                            inputProps={{ style: { color: 'white' } }}
+                            sx={{ bgcolor: '#444', mr: 1 }}
+                        />
+                        <Button variant="contained" color="primary" onClick={sendMessage}>Send</Button>
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
     );
 };
 
