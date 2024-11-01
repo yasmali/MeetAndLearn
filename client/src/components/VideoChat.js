@@ -265,61 +265,34 @@ const VideoChat = () => {
 
     return (
         // Ana kapsayıcı Box - Ekranın ortasında ortalanmış düzen
-        <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
-            <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
-                {/* Büyük video çerçevesi */}
-                <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
-                    <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
-                        {otherUsers.map(userId => (
-                            <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ))}
-                    </Box>
-                    <Box position="absolute" bottom="10px" right="10px" width="250px" height="175px" border="2px solid #fff" borderRadius="10px" overflow="hidden" bgcolor="#000">
-                        {stream && cameraEnabled ? (
-                            <>
-                                <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                <Typography variant="caption" style={{ position: 'absolute', top: '5px', right: '5px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '2px 5px', borderRadius: '5px' }}>{mySocketId}</Typography>
-                            </>
-                        ) : (
-                            <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
-                        )}
-                    </Box>
-                    <Box position="absolute" bottom="10px" left="50%" transform="translateX(-50%)" display="flex" gap="15px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
-                        <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
-                            {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                        </IconButton>
-                        <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
-                            {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
-                        </IconButton>
-                    </Box>
-                </Box>
-
-                {/* Sohbet Bölümü */}
-                <Box width="30%" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)">
-                    <Typography variant="h6" color="white" mb={2}>Live Chat</Typography>
-                    <List style={{ height: '70%', overflowY: 'auto', color: 'white' }}>
-                        {messages.map((msg, index) => (
-                            <ListItem key={index}>
-                                <ListItemText primary={`${msg.sender}: ${msg.message}`} />
-                            </ListItem>
-                        ))}
-                    </List>
-                    <Box display="flex" mt={2}>
-                        <TextField
-                            variant="outlined"
-                            placeholder="Type a message..."
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={handleKeyPress} // Enter tuşu için olay ekleyin
-                            fullWidth
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ bgcolor: '#444', mr: 1 }}
-                        />
-                        <Button variant="contained" color="primary" onClick={sendMessage}>Send</Button>
-                    </Box>
-                </Box>
-            </Box>
-        </Box>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100vw', height: '100vh', backgroundColor: '#333' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '90%', maxWidth: '1100px', height: '80vh', maxHeight: '700px', position: 'relative', backgroundColor: '#222', borderRadius: '10px', padding: '10px', boxShadow: '0px 4px 10px rgba(0,0,0,0.5)' }}>
+                
+                <div style={{ width: '100%', height: '100%', position: 'relative', borderRadius: '10px', overflow: 'hidden' }}>
+                    {otherUsers.map(userId => (
+                        <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ))}
+                </div>
+                <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '250px', height: '175px', border: '2px solid #fff', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#000' }}>
+                    {stream && cameraEnabled ? (
+                        <>
+                            <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ fontSize: '14px', position: 'absolute', top: '5px', right: '5px', color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: '2px 5px', borderRadius: '5px' }}>{mySocketId}</div>
+                        </>
+                    ) : (
+                        <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+                    )}
+                </div>
+                <div style={{ position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '15px', backgroundColor: 'rgba(0, 0, 0, 0.6)', borderRadius: '8px', padding: '10px' }}>
+                    <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
+                        {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+                    </IconButton>
+                    <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
+                        {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
+                    </IconButton>
+                </div>
+            </div>
+        </div>
     );
 };
 
