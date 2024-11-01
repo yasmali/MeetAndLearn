@@ -105,12 +105,9 @@ const VideoChat = () => {
     useEffect(() => {
         if (!socket.connected) {
             socket.connect();
-        }
-
-        socket.on('connect', () => {
             setMySocketId(socket.id);
             console.log('Socket.IO bağlantısı kuruldu:', socket.id);
-        });
+        }
 
         startVideoStream().then((currentStream) => {
             socket.emit('join-room', { roomId });
