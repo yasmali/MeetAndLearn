@@ -9,6 +9,7 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import NoCameraIcon from '@mui/icons-material/VideocamOff';
 import socket from '../socket.js';
+import Swal from 'sweetalert2';
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -177,6 +178,16 @@ const VideoChat = () => {
             if (userVideos.current[socketId]) {
                 delete userVideos.current[socketId];
                 setOtherUsers(users => users.filter(user => user !== socketId));
+                //alert alert 
+
+                Swal.fire({
+                    title: 'User Disconnected',
+                    text: socketId + ' User Disconnected',
+                    icon: 'info',
+                    confirmButtonText: 'Ok',
+                    timer: 2000,
+                    timerProgressBar: true
+                });
             }
         });
 
