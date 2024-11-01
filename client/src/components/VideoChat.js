@@ -130,13 +130,13 @@ const VideoChat = () => {
             });
 
             // Yeni bir kullanıcı katıldığında peer başlat
-            socket.on('user-joined', payload => {
+            socket.on("user-joined", (payload) => {
                 console.log("Yeni bir kullanıcı katıldı:", payload.callerId);
-                // userVideos referansı ayarlanıyor
                 if (!userVideos.current[payload.callerId]) {
                     userVideos.current[payload.callerId] = React.createRef();
                 }
-                const peer = addPeer(null, payload.callerId, currentStream);
+
+                const peer = addPeer(payload.incomingSignal, payload.callerId, stream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
             });
@@ -177,6 +177,13 @@ const VideoChat = () => {
             socket.emit("user-disconnected", { socketId: mySocketId });
             socket.disconnect();
         };
+
+        socket.on("user-disconnected", ({ socketId }) => {
+            if (userVideos.current[socketId]) {
+                delete userVideos.current[socketId];
+                setOtherUsers(users => users.filter(user => user !== socketId));
+            }
+        });
 
         window.addEventListener("beforeunload", handleBeforeUnload);
 
