@@ -33,16 +33,19 @@ io.on('connection', (socket) => {
     socket.on('join-room', ({ roomId }) => {
         const room = io.sockets.adapter.rooms.get(roomId) || new Set();
 
+        // Kullanıcı zaten odaya katılmışsa, yeniden katılımı engelle
         if (room.has(socket.id)) {
             console.log(`Kullanıcı ${socket.id} zaten odaya bağlı: ${roomId}`);
-            return; // Kullanıcı zaten odaya katıldıysa, ikinci kez katılma işlemini engelle
+            return;
         }
 
+        // Oda doluysa kullanıcıya bildirim gönder
         if (room.size >= 2) {
             socket.emit('room-full');
             return;
         }
 
+        // Kullanıcıyı odaya dahil et ve diğer kullanıcılara bildirim gönder
         socket.join(roomId);
         console.log(`Kullanıcı ${socket.id} odaya katıldı: ${roomId}`);
 
@@ -51,6 +54,7 @@ io.on('connection', (socket) => {
         const otherUsers = [...room].filter(id => id !== socket.id);
         socket.emit('all-users', otherUsers);
 
+        // Sinyalleşme işlemleri
         socket.on('sending-signal', ({ userToSignal, callerId, signal }) => {
             io.to(userToSignal).emit('receiving-signal', { callerId, signal });
         });
@@ -59,14 +63,15 @@ io.on('connection', (socket) => {
             io.to(callerId).emit('receiving-returned-signal', { id: socket.id, signal });
         });
 
+        // Kamera durumunu güncelleme
         socket.on("toggle-camera", ({ cameraEnabled, callerId }) => {
             socket.to(roomId).emit("toggle-camera", { cameraEnabled, callerId });
         });
 
+        // Kullanıcı bağlantıyı kopardığında
         socket.on('disconnect', () => {
             console.log(`Kullanıcı ${socket.id} bağlantıyı kesti`);
             socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
-            socket.leave(roomId); // Kullanıcıyı odadan çıkar
         });
     });
 });
