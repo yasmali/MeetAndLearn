@@ -178,7 +178,6 @@ const VideoChat = () => {
             if (userVideos.current[socketId]) {
                 delete userVideos.current[socketId];
                 setOtherUsers(users => users.filter(user => user !== socketId));
-                //alert alert 
 
                 Swal.fire({
                     title: 'User Disconnected',
