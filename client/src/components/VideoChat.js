@@ -158,9 +158,9 @@ const VideoChat = () => {
                 }
             });
 
-            socket.on('chat-message', ({ message, sender }) => {
-                setMessages((prevMessages) => [...prevMessages, { sender, message }]);
-            });
+            // socket.on('chat-message', ({ message, sender }) => {
+            //     setMessages((prevMessages) => [...prevMessages, { sender, message }]);
+            // });
         });
 
         socket.on('room-full', () => {
@@ -193,7 +193,7 @@ const VideoChat = () => {
             socket.off("toggle-camera");
             socket.off("room-full");
             socket.off("user-disconnected");
-            socket.off("chat-message");
+            //socket.off("chat-message");
 
             // Peer bağlantılarını kapat
             Object.values(peersRef.current).forEach(peer => peer.destroy());
@@ -246,7 +246,7 @@ const VideoChat = () => {
     const sendMessage = () => {
         if (message.trim()) {
             const sender = mySocketId;
-            socket.emit('chat-message', { message, sender });
+            //socket.emit('chat-message', { message, sender });
             setMessages((prevMessages) => [...prevMessages, { sender: 'You', message }]);
             setMessage('');
         }
