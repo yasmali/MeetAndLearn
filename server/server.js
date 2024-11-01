@@ -33,6 +33,11 @@ io.on('connection', (socket) => {
     socket.on('join-room', ({ roomId }) => {
         const room = io.sockets.adapter.rooms.get(roomId) || new Set();
 
+        if (room.has(socket.id)) {
+            console.log(`Kullanıcı ${socket.id} zaten odaya bağlı: ${roomId}`);
+            return; // Kullanıcı zaten odaya katıldıysa, ikinci kez katılma işlemini engelle
+        }
+
         if (room.size >= 2) {
             socket.emit('room-full');
             return;
@@ -61,6 +66,7 @@ io.on('connection', (socket) => {
         socket.on('disconnect', () => {
             console.log(`Kullanıcı ${socket.id} bağlantıyı kesti`);
             socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
+            socket.leave(roomId); // Kullanıcıyı odadan çıkar
         });
     });
 });
