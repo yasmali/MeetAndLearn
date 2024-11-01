@@ -188,7 +188,7 @@ const VideoChat = () => {
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
             socket.off('connect');
-            //socket.disconnect();
+            socket.disconnect();
             Object.values(peersRef.current).forEach(peer => peer.destroy());
         };
     }, [roomId]);
