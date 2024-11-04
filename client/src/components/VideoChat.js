@@ -126,7 +126,9 @@ const VideoChat = () => {
                     peers.push(userId);
                 });
                 setOtherUsers(peers);
-                setLoading(true);
+                if (peers.length > 0){
+                    setLoading(true);
+                }
             });
 
             // Yeni bir kullanıcı katıldığında peer başlat
