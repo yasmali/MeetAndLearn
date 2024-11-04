@@ -63,10 +63,10 @@ io.on('connection', (socket) => {
             socket.to(roomId).emit("toggle-camera", { cameraEnabled, callerId });
         });
 
-        // // Sohbet mesajlarını gönder
-        // socket.on("chat-message", ({ message, sender }) => {
-        //     io.to(roomId).emit("chat-message", { message, sender });
-        // });
+        // Sohbet mesajlarını gönder
+        socket.on("chat-message", ({ message, sender }) => {
+            io.to(roomId).emit("chat-message", { message, sender });
+        });
 
         socket.on('disconnect', () => {
             console.log(`${socket.id} disconnected!`);
