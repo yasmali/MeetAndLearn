@@ -43,6 +43,7 @@ const VideoChat = () => {
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
+            setLoading(false);
         }
     }, [stream]);
 
