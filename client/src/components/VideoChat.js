@@ -80,6 +80,7 @@ const VideoChat = () => {
 
         peer.on("signal", signal => {
             socket.emit("returning-signal", { signal, callerId });
+            setLoading(false); // Loading kapat
         });
 
         peer.on("stream", userStream => {
