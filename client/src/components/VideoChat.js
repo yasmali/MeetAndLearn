@@ -271,7 +271,10 @@ const VideoChat = () => {
     return (
         // Ana kapsayıcı Box - Ekranın ortasında ortalanmış düzen
         <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
-            {loading && (
+            <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
+                {/* Büyük video çerçevesi */}
+                <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
+                {loading && (
                 <Box
                     position="fixed"
                     top="0"
@@ -287,9 +290,6 @@ const VideoChat = () => {
                     <CircularProgress color="secondary" size={80} />
                 </Box>
             )}
-            <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
-                {/* Büyük video çerçevesi */}
-                <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
                     <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
                         {otherUsers.map(userId => (
                             <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
