@@ -126,6 +126,7 @@ const VideoChat = () => {
                     peers.push(userId);
                 });
                 setOtherUsers(peers);
+                setLoading(true);
             });
 
             // Yeni bir kullanıcı katıldığında peer başlat
@@ -152,6 +153,7 @@ const VideoChat = () => {
                 if (payload.signal) {
                     try {
                         peer.signal(payload.signal);
+                        setLoading(false);
                     } catch (error) {
                         console.error("Peer signal error:", error);
                     }
@@ -320,7 +322,7 @@ const VideoChat = () => {
                 <Typography variant="h6" color="white" mt={2}>
                     Bağlanıyor...
                 </Typography>
-            </Box>
+                            </Box>
             )}
                         {stream && cameraEnabled ? (
                             <>
