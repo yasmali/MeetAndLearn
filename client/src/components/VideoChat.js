@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
-import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText } from '@mui/material';
+import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
@@ -20,6 +20,7 @@ const VideoChat = () => {
     const [otherUsers, setOtherUsers] = useState([]);
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
+    const [loading, setLoading] = useState(true); // Loading state
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -54,6 +55,7 @@ const VideoChat = () => {
 
         peer.on("signal", signal => {
             socket.emit("sending-signal", { userToSignal, callerId, signal });
+            setLoading(false); // Loading kapat
         });
 
         peer.on("stream", userStream => {
@@ -131,6 +133,7 @@ const VideoChat = () => {
                 const peer = addPeer(null, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
+                setLoading(true); // Loading aç
             });
 
             // İlk sinyali al ve bağlantıyı tamamla
@@ -266,6 +269,22 @@ const VideoChat = () => {
     return (
         // Ana kapsayıcı Box - Ekranın ortasında ortalanmış düzen
         <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
+            {loading && (
+                <Box
+                    position="fixed"
+                    top="0"
+                    left="0"
+                    width="100vw"
+                    height="100vh"
+                    bgcolor="rgba(0, 0, 0, 0.8)"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    zIndex="9999"
+                >
+                    <CircularProgress color="secondary" size={80} />
+                </Box>
+            )}
             <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
                 {/* Büyük video çerçevesi */}
                 <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
