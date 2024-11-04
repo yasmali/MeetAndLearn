@@ -20,7 +20,8 @@ const VideoChat = () => {
     const [otherUsers, setOtherUsers] = useState([]);
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const [loading, setLoading] = useState(true); // Loading state
+    const [loading, setLoading] = useState(false); // Loading state
+    const [myLoading, setMyLoading] = useState(false); // Loading state
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -43,7 +44,7 @@ const VideoChat = () => {
     useEffect(() => {
         if (stream && myVideo.current) {
             myVideo.current.srcObject = stream;
-            setLoading(false);
+            setMyLoading(false);
         }
     }, [stream]);
 
@@ -56,7 +57,6 @@ const VideoChat = () => {
 
         peer.on("signal", signal => {
             socket.emit("sending-signal", { userToSignal, callerId, signal });
-            setLoading(false); // Loading kapat
         });
 
         peer.on("stream", userStream => {
@@ -107,6 +107,8 @@ const VideoChat = () => {
         if (!socket.connected) {
             socket.connect();
             setMySocketId(socket.id);
+            debugger;
+            setMyLoading(true);
             console.log('Socket.IO connection established:', socket.id);
         }
 
@@ -276,19 +278,23 @@ const VideoChat = () => {
                 <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
                 {loading && (
                 <Box
-                    position="fixed"
-                    top="0"
-                    left="0"
-                    width="100vw"
-                    height="100vh"
-                    bgcolor="rgba(0, 0, 0, 0.8)"
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                    zIndex="9999"
-                >
-                    <CircularProgress color="secondary" size={80} />
-                </Box>
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                position="absolute"
+                top="0"
+                left="0"
+                width="100%"
+                height="100%"
+                bgcolor="rgba(0, 0, 0, 0.6)"
+                zIndex="10"
+            >
+                <CircularProgress color="secondary" size={80} />
+                <Typography variant="h6" color="white" mt={2}>
+                    Diğer Kullanıcı Bağlanıyor...
+                </Typography>
+            </Box>
             )}
                     <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
                         {otherUsers.map(userId => (
@@ -296,6 +302,26 @@ const VideoChat = () => {
                         ))}
                     </Box>
                     <Box position="absolute" bottom="10px" right="10px" width="250px" height="175px" border="2px solid #fff" borderRadius="10px" overflow="hidden" bgcolor="#000">
+                    {myLoading && (
+                <Box
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                position="absolute"
+                top="0"
+                left="0"
+                width="100%"
+                height="100%"
+                bgcolor="rgba(0, 0, 0, 0.6)"
+                zIndex="10"
+            >
+                <CircularProgress color="secondary" size={60} />
+                <Typography variant="h6" color="white" mt={2}>
+                    Bağlanıyor...
+                </Typography>
+            </Box>
+            )}
                         {stream && cameraEnabled ? (
                             <>
                                 <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
