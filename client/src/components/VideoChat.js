@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
-import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText, CircularProgress, Drawer } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
@@ -9,10 +9,12 @@ import MicOffIcon from '@mui/icons-material/MicOff';
 import NoCameraIcon from '@mui/icons-material/VideocamOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
+import ChatIcon from '@mui/icons-material/Chat';
 import { FiSmile } from 'react-icons/fi';
 import { motion } from 'framer-motion'; // Animasyon için
 import socket from '../socket.js';
 import '../assets/VideoChat.css';
+import { ChatBubble, ChatBubbleRounded, ChatRounded, ChatSharp, InsertCommentSharp } from '@mui/icons-material';
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -30,6 +32,7 @@ const VideoChat = () => {
     const [selectedEmoji, setSelectedEmoji] = useState(null);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [screenStream, setScreenStream] = useState(null); // Ekran paylaşımı için
+    const [isChatOpen, setIsChatOpen] = useState(false); // Chat açma kapama durumu
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -59,7 +62,6 @@ const VideoChat = () => {
                 stopScreenShare();
             };
 
-            // Tüm kullanıcılarla ekran paylaşımı başlat
             Object.values(peersRef.current).forEach(peer => {
                 peer.replaceTrack(
                     stream.getVideoTracks()[0],
@@ -76,7 +78,6 @@ const VideoChat = () => {
         screenStream.getTracks().forEach(track => track.stop());
         setIsScreenSharing(false);
 
-        // Kamera akışına geri dön
         Object.values(peersRef.current).forEach(peer => {
             peer.replaceTrack(
                 screenStream.getVideoTracks()[0],
@@ -93,6 +94,10 @@ const VideoChat = () => {
             setMyLoading(false);
         }
     }, [stream]);
+
+    const toggleChat = () => {
+        setIsChatOpen(prevState => !prevState);
+    };
 
     const createPeer = (userToSignal, callerId, stream) => {
         const peer = new Peer({
@@ -318,25 +323,36 @@ const VideoChat = () => {
     return (
         <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
             <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
-                <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
-                {loading && (
-                    <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
-                        <CircularProgress color="secondary" size={80} />
-                        <Typography variant="h6" color="white" mt={2}>Diğer Kullanıcı Bağlanıyor...</Typography>
-                    </Box>
-                )}
+                <Box 
+                    display="flex" 
+                    flexDirection="column" 
+                    width={isChatOpen ? '80%' : '100%'} 
+                    height="90vh" 
+                    bgcolor="#222" 
+                    borderRadius="10px" 
+                    p={2} 
+                    boxShadow="0px 4px 10px rgba(0,0,0,0.5)" 
+                    position="relative"
+                    transition="width 0.3s ease-in-out"
+                >
+                    {loading && (
+                        <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
+                            <CircularProgress color="secondary" size={80} />
+                            <Typography variant="h6" color="white" mt={2}>Diğer Kullanıcı Bağlanıyor...</Typography>
+                        </Box>
+                    )}
                     <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
                         {otherUsers.map(userId => (
                             <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ))}
                     </Box>
                     <Box position="absolute" bottom="10px" right="10px" width="250px" height="175px" border="2px solid #fff" borderRadius="10px" overflow="hidden" bgcolor="#000">
-                    {myLoading && (
-                        <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
-                            <CircularProgress color="secondary" size={60} />
-                            <Typography variant="h6" color="white" mt={2}>Bağlanıyor...</Typography>
-                        </Box>
-                    )}
+                        {myLoading && (
+                            <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
+                                <CircularProgress color="secondary" size={60} />
+                                <Typography variant="h6" color="white" mt={2}>Bağlanıyor...</Typography>
+                            </Box>
+                        )}
                         {stream && cameraEnabled ? (
                             <>
                                 <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -346,7 +362,7 @@ const VideoChat = () => {
                             <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
                         )}
                     </Box>
-                    <Box position="absolute" bottom="10px" left="30%" transform="translateX(-50%)" display="flex" gap="10px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
+                    <Box position="absolute" bottom="10px" left="35%" transform="translateX(-50%)" display="flex" gap="10px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
                         <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
                             {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
                         </IconButton>
@@ -359,9 +375,12 @@ const VideoChat = () => {
                         <IconButton onClick={isScreenSharing ? stopScreenShare : startScreenShare} style={{ color: 'white' }}>
                             {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
                         </IconButton>
+                        <IconButton onClick={toggleChat} style={{ color: 'white' }}>
+                            <ChatIcon />
+                        </IconButton>
                     </Box>
                     {showEmojiPicker && (
-                        <Box position="absolute" bottom="60px" left="50%" transform="translateX(-50%)" bgcolor="#444" borderRadius="8px" p={1} display="flex" gap="5px">
+                        <Box position="absolute" bottom="60px" left="40%" transform="translateX(-50%)" bgcolor="#444" borderRadius="8px" p={1} display="flex" gap="5px">
                             <span onClick={() => sendEmoji('😊')}>😊</span>
                             <span onClick={() => sendEmoji('😂')}>😂</span>
                             <span onClick={() => sendEmoji('😍')}>😍</span>
@@ -381,29 +400,31 @@ const VideoChat = () => {
                         </motion.div>
                     )}
                 </Box>
-                <Box width="30%" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)">
-                    <Typography variant="h6" color="white" mb={2}>Live Chat</Typography>
-                    <List style={{ height: '70%', overflowY: 'auto', color: 'white' }}>
-                        {messages.map((msg, index) => (
-                            <ListItem key={index}>
-                                <ListItemText primary={`${msg.sender}: ${msg.message}`} />
-                            </ListItem>
-                        ))}
-                    </List>
-                    <Box display="flex" mt={10}>
-                        <TextField
-                            variant="outlined"
-                            placeholder="Type a message..."
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            fullWidth
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ bgcolor: '#444', mr: 1 }}
-                        />
-                        <Button variant="contained" color="primary" onClick={sendMessage}>Send</Button>
+                <Drawer anchor="right" open={isChatOpen} onClose={toggleChat} BackdropProps={{ invisible: true }}>
+                    <Box width="300px" bgcolor="#222" height="100vh" p={2}>
+                        <Typography variant="h6" color="white" mb={2}>Live Chat</Typography>
+                        <List style={{ height: '70%', overflowY: 'auto', color: 'white' }}>
+                            {messages.map((msg, index) => (
+                                <ListItem key={index}>
+                                    <ListItemText primary={`${msg.sender}: ${msg.message}`} />
+                                </ListItem>
+                            ))}
+                        </List>
+                        <Box display="flex" mt={10}>
+                            <TextField
+                                variant="outlined"
+                                placeholder="Type a message..."
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                fullWidth
+                                inputProps={{ style: { color: 'white' } }}
+                                sx={{ bgcolor: '#444', mr: 1 }}
+                            />
+                            <Button variant="contained" color="primary" onClick={sendMessage}>Send</Button>
+                        </Box>
                     </Box>
-                </Box>
+                </Drawer>
             </Box>
         </Box>
     );
