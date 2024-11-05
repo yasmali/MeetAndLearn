@@ -14,7 +14,6 @@ import { FiSmile } from 'react-icons/fi';
 import { motion } from 'framer-motion'; // Animasyon için
 import socket from '../socket.js';
 import '../assets/VideoChat.css';
-import { ChatBubble, ChatBubbleRounded, ChatRounded, ChatSharp, InsertCommentSharp } from '@mui/icons-material';
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -33,6 +32,9 @@ const VideoChat = () => {
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [screenStream, setScreenStream] = useState(null); // Ekran paylaşımı için
     const [isChatOpen, setIsChatOpen] = useState(false); // Chat açma kapama durumu
+    const [isRecording, setIsRecording] = useState(false); // Kayıt durumu
+    const mediaRecorderRef = useRef(null); // MediaRecorder referansı
+    const recordedChunks = useRef([]); // Kayıt parçaları
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -86,6 +88,48 @@ const VideoChat = () => {
             );
         });
         setScreenStream(null);
+    };
+
+    const startRecording = async () => {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            mediaRecorderRef.current = new MediaRecorder(screenStream, { mimeType: 'video/webm' });
+            
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.current.push(event.data);
+                }
+            };
+
+            mediaRecorderRef.current.onstop = () => {
+                const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
+                recordedChunks.current = []; // Kayıt parçalarını sıfırla
+                downloadRecording(blob); // Kullanıcıya kaydetme seçeneği sun
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+        } catch (error) {
+            console.error("Ekran kaydı başlatılamadı:", error);
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    };
+
+    const downloadRecording = (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = "screen-recording.webm"; // Kaydedilecek dosya adı
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     useEffect(() => {
@@ -377,6 +421,9 @@ const VideoChat = () => {
                         </IconButton>
                         <IconButton onClick={toggleChat} style={{ color: 'white' }}>
                             <ChatIcon />
+                        </IconButton>
+                        <IconButton onClick={isRecording ? stopRecording : startRecording} style={{ color: 'white' }}>
+                            {isRecording ? <StopScreenShareIcon /> : <VideocamIcon />}
                         </IconButton>
                     </Box>
                     {showEmojiPicker && (
