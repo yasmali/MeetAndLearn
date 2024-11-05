@@ -114,38 +114,111 @@ const VideoChat = () => {
     };
 
     const startCombinedRecording = () => {
-        if (myVideo.current && (otherUsers.length === 0 || userVideos.current[otherUsers[0]])) {
-            // Canvas oluşturma ve boyut ayarları
+        if (myVideo.current) {
             const canvas = document.createElement("canvas");
             canvas.width = 1280;
             canvas.height = 720;
             const ctx = canvas.getContext("2d");
-            
-            // İki video akışını sırayla canvas'a çizen fonksiyon
+    
             const draw = () => {
                 // Arka planı siyah yap
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-                // Kendi video akışınızı sol tarafa çizme
-                if (stream && myVideo.current && myVideo.current.srcObject) {
-                    ctx.drawImage(myVideo.current, 0, 0, canvas.width / 2, canvas.height);
+                if (isScreenSharing && screenStream) {
+                    // Ekran paylaşımı yapılan ekranı sol tarafta büyük göster
+                    ctx.drawImage(screenStream.getVideoTracks()[0], 0, 0, canvas.width * 0.75, canvas.height);
+    
+                    // Sağ tarafta kamera görüntüleri için alan ayarla
+                    let cameraX = canvas.width * 0.78;
+                    let cameraY = 10;
+                    const cameraWidth = canvas.width * 0.2;
+                    const cameraHeight = canvas.height * 0.2;
+    
+                    // Ekranı paylaşan kullanıcının kamera görüntüsünü en üstte göster
+                    if (myVideo.current.srcObject) {
+                        ctx.drawImage(myVideo.current, cameraX, cameraY, cameraWidth, cameraHeight);
+                        cameraY += cameraHeight + 10; // Araya boşluk bırak
+                    }
+    
+                    // Diğer kullanıcıların kamera görüntülerini ekle
+                    otherUsers.forEach((userId) => {
+                        const videoRef = userVideos.current[userId];
+    
+                        if (videoRef && videoRef.current && videoRef.current.srcObject) {
+                            ctx.drawImage(videoRef.current, cameraX, cameraY, cameraWidth, cameraHeight);
+                        } else {
+                            // Kamera kapalıysa siyah çerçeve ve USER yazısı göster
+                            ctx.fillStyle = "black";
+                            ctx.fillRect(cameraX, cameraY, cameraWidth, cameraHeight);
+                            ctx.fillStyle = "white";
+                            ctx.font = "20px Arial";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            ctx.fillText("USER", cameraX + cameraWidth / 2, cameraY + cameraHeight / 2);
+                        }
+                        cameraY += cameraHeight + 10; // Her bir kamera için araya boşluk bırak
+                    });
+                } else {
+                    // Ekran paylaşımı yoksa, tüm kullanıcıları sıralı bir şekilde yerleştir
+                    const columns = Math.ceil(Math.sqrt(otherUsers.length + 1)); // Kolon sayısı, kendi görüntümüz de dahil
+                    const rows = Math.ceil((otherUsers.length + 1) / columns); // Satır sayısı
+                    const boxWidth = canvas.width / columns - 10;
+                    const boxHeight = canvas.height / rows - 10;
+    
+                    let x = 5;
+                    let y = 5;
+    
+                    // Kendi video görüntümüz
+                    if (myVideo.current.srcObject) {
+                        ctx.drawImage(myVideo.current, x, y, boxWidth, boxHeight);
+                    } else {
+                        ctx.fillStyle = "black";
+                        ctx.fillRect(x, y, boxWidth, boxHeight);
+                        ctx.fillStyle = "white";
+                        ctx.font = "20px Arial";
+                        ctx.textAlign = "center";
+                        ctx.textBaseline = "middle";
+                        ctx.fillText("USER", x + boxWidth / 2, y + boxHeight / 2);
+                    }
+    
+                    x += boxWidth + 10; // Bir sonraki kutucuk için konumu ayarla
+    
+                    // Diğer kullanıcıların görüntüleri
+                    otherUsers.forEach((userId, index) => {
+                        if (x + boxWidth > canvas.width) {
+                            x = 5; // Yeni satıra geç
+                            y += boxHeight + 10;
+                        }
+    
+                        const videoRef = userVideos.current[userId];
+    
+                        if (videoRef && videoRef.current && videoRef.current.srcObject) {
+                            ctx.drawImage(videoRef.current, x, y, boxWidth, boxHeight);
+                        } else {
+                            // Kamera kapalıysa siyah çerçeve ve USER yazısı göster
+                            ctx.fillStyle = "black";
+                            ctx.fillRect(x, y, boxWidth, boxHeight);
+                            ctx.fillStyle = "white";
+                            ctx.font = "20px Arial";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            ctx.fillText("USER", x + boxWidth / 2, y + boxHeight / 2);
+                        }
+    
+                        x += boxWidth + 10; // Sonraki pozisyona geç
+                    });
                 }
     
-                // Diğer kullanıcının video akışını sağ tarafa çizme
-                if (otherUsers.length > 0 && userVideos.current[otherUsers[0]] && userVideos.current[otherUsers[0]].current.srcObject) {
-                    ctx.drawImage(userVideos.current[otherUsers[0]].current, canvas.width / 2, 0, canvas.width / 2, canvas.height);
-                }
-                
                 requestAnimationFrame(draw); // Sürekli tekrar çizim
             };
-            
+    
             draw(); // Çizim başlatma
     
             // Canvas'tan MediaRecorder oluşturma
             const combinedStream = canvas.captureStream();
             mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
-            
+    
             mediaRecorderRef.current.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     recordedChunks.current.push(event.data);
@@ -162,6 +235,7 @@ const VideoChat = () => {
             setIsRecording(true);
         }
     };
+    
     
 
     const stopRecording = () => {
