@@ -1,0 +1,54 @@
+.video-chat-container {
+    position: relative;
+}
+
+.video-chat-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    background-color: #333;
+    border-radius: 8px;
+}
+
+.control-button {
+    background-color: #444;
+    border: none;
+    color: white;
+    font-size: 24px;
+    padding: 10px;
+    margin: 0 5px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.control-button:hover {
+    background-color: #555;
+}
+
+.emoji-picker {
+    display: flex;
+    gap: 10px;
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #444;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+
+.emoji-picker span {
+    cursor: pointer;
+    font-size: 24px;
+}
+
+.emoji-animation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    pointer-events: none;
+}

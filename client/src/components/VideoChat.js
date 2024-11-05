@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState } from 'react';
-import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { useParams } from 'react-router-dom';
 import { IconButton, TextField, Button, Box, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
@@ -8,7 +7,12 @@ import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import NoCameraIcon from '@mui/icons-material/VideocamOff';
+import ScreenShareIcon from '@mui/icons-material/ScreenShare';
+import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
+import { FiSmile } from 'react-icons/fi';
+import { motion } from 'framer-motion'; // Animasyon için
 import socket from '../socket.js';
+import '../assets/VideoChat.css';
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -20,8 +24,12 @@ const VideoChat = () => {
     const [otherUsers, setOtherUsers] = useState([]);
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const [loading, setLoading] = useState(false); // Loading state
-    const [myLoading, setMyLoading] = useState(false); // Loading state
+    const [loading, setLoading] = useState(false);
+    const [myLoading, setMyLoading] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [selectedEmoji, setSelectedEmoji] = useState(null);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const [screenStream, setScreenStream] = useState(null); // Ekran paylaşımı için
 
     const myVideo = useRef();
     const userVideos = useRef({});
@@ -39,6 +47,44 @@ const VideoChat = () => {
             console.error("Video akışı başlatılamadı:", error);
             alert("Kamera ve mikrofon erişimine izin verildiğinden emin olun.");
         }
+    };
+
+    const startScreenShare = async () => {
+        try {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            setScreenStream(screenStream);
+            setIsScreenSharing(true);
+
+            screenStream.getVideoTracks()[0].onended = () => {
+                stopScreenShare();
+            };
+
+            // Tüm kullanıcılarla ekran paylaşımı başlat
+            Object.values(peersRef.current).forEach(peer => {
+                peer.replaceTrack(
+                    stream.getVideoTracks()[0],
+                    screenStream.getVideoTracks()[0],
+                    stream
+                );
+            });
+        } catch (error) {
+            console.error("Ekran paylaşımı başlatılamadı:", error);
+        }
+    };
+
+    const stopScreenShare = () => {
+        screenStream.getTracks().forEach(track => track.stop());
+        setIsScreenSharing(false);
+
+        // Kamera akışına geri dön
+        Object.values(peersRef.current).forEach(peer => {
+            peer.replaceTrack(
+                screenStream.getVideoTracks()[0],
+                stream.getVideoTracks()[0],
+                stream
+            );
+        });
+        setScreenStream(null);
     };
 
     useEffect(() => {
@@ -80,7 +126,7 @@ const VideoChat = () => {
 
         peer.on("signal", signal => {
             socket.emit("returning-signal", { signal, callerId });
-            setLoading(false); // Loading kapat
+            setLoading(false);
         });
 
         peer.on("stream", userStream => {
@@ -107,7 +153,6 @@ const VideoChat = () => {
         if (!socket.connected) {
             socket.connect();
             setMySocketId(socket.id);
-            debugger;
             setMyLoading(true);
             console.log('Socket.IO connection established:', socket.id);
         }
@@ -131,7 +176,6 @@ const VideoChat = () => {
                 }
             });
 
-            // Yeni bir kullanıcı katıldığında peer başlat
             socket.on('user-joined', payload => {
                 console.log("New user joined:", payload.callerId);
                 if (!userVideos.current[payload.callerId]) {
@@ -140,16 +184,14 @@ const VideoChat = () => {
                 const peer = addPeer(null, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
                 setOtherUsers(users => [...users, payload.callerId]);
-                setLoading(true); // Loading aç
+                setLoading(true);
             });
 
-            // İlk sinyali al ve bağlantıyı tamamla
             socket.on("receiving-signal", payload => {
                 const peer = addPeer(payload.signal, payload.callerId, currentStream);
                 peersRef.current[payload.callerId] = peer;
             });
 
-            // Karşı taraftan gelen sinyali al ve bağlantıyı tamamla
             socket.on("receiving-returned-signal", payload => {
                 const peer = peersRef.current[payload.id];
                 if (payload.signal) {
@@ -162,7 +204,6 @@ const VideoChat = () => {
                 }
             });
 
-            // Diğer kullanıcının kamera durumunu dinle
             socket.on("toggle-camera", ({ cameraEnabled, callerId }) => {
                 if (userVideos.current[callerId]) {
                     userVideos.current[callerId].current.style.display = cameraEnabled ? "block" : "none";
@@ -178,7 +219,6 @@ const VideoChat = () => {
             setRoomFull(true);
         });
 
-        // Sayfa yenilenirken veya kapanırken bağlantıyı kapat
         const handleBeforeUnload = () => {
             socket.emit("user-disconnected", { socketId: mySocketId });
             socket.disconnect();
@@ -196,7 +236,6 @@ const VideoChat = () => {
         return () => {
             window.removeEventListener("beforeunload", handleBeforeUnload);
 
-            // Tüm socket olaylarını kapat ve peer bağlantılarını temizle
             socket.off('all-users');
             socket.off('user-joined');
             socket.off("receiving-signal");
@@ -206,52 +245,55 @@ const VideoChat = () => {
             socket.off("user-disconnected");
             socket.off("chat-message");
 
-            // Peer bağlantılarını kapat
             Object.values(peersRef.current).forEach(peer => peer.destroy());
             peersRef.current = {};
             userVideos.current = {};
 
-            // Socket bağlantısını tamamen kapat
             socket.disconnect();
         };
     }, [roomId]);
 
-    // Kamera açma/kapama işlevi
     const toggleCamera = async () => {
         if (stream) {
             const videoTrack = stream.getVideoTracks()[0];
             
             if (cameraEnabled) {
-                videoTrack.enabled = false; // Kamerayı kapat
+                videoTrack.enabled = false;
                 setCameraEnabled(false);
             } else {
-                videoTrack.enabled = true; // Kamerayı aç
+                videoTrack.enabled = true;
                 setCameraEnabled(true);
     
-                // Kamera açıldığında myVideo referansını güncelle
                 if (myVideo.current) {
                     myVideo.current.srcObject = stream;
                 }
             }
             
-            // Kamera durumunu diğer kullanıcıya bildir
             socket.emit("toggle-camera", { cameraEnabled: !cameraEnabled, callerId: mySocketId });
         }
     };
 
-    // Kamera durumu değiştiğinde myVideo referansını güncellemek için useEffect
     useEffect(() => {
         if (cameraEnabled && stream && myVideo.current) {
             myVideo.current.srcObject = stream;
         }
     }, [cameraEnabled, stream]);
 
- // Mikrofon açma/kapama işlevi
     const toggleMicrophone = () => {
         if (stream) {
             stream.getAudioTracks()[0].enabled = !microphoneEnabled;
             setMicrophoneEnabled(!microphoneEnabled);
         }
+    };
+
+    const toggleEmojiPicker = () => {
+        setShowEmojiPicker(!showEmojiPicker);
+    };
+
+    const sendEmoji = (emoji) => {
+        setSelectedEmoji(emoji);
+        setShowEmojiPicker(false);
+        setTimeout(() => setSelectedEmoji(null), 2000);
     };
 
     const sendMessage = () => {
@@ -263,7 +305,6 @@ const VideoChat = () => {
         }
     };
 
-    // Enter tuşu ile mesaj gönderme işlevi
     const handleKeyPress = (event) => {
         if (event.key === 'Enter') {
             sendMessage();
@@ -275,31 +316,15 @@ const VideoChat = () => {
     }
 
     return (
-        // Ana kapsayıcı Box - Ekranın ortasında ortalanmış düzen
         <Box display="flex" alignItems="center" justifyContent="center" width="100vw" height="100vh" bgcolor="#333" p={2} overflow="hidden">
             <Box display="flex" flexDirection="row" width="100%" maxWidth="1400px" maxHeight="90vh" p={2} gap={2}>
-                {/* Büyük video çerçevesi */}
                 <Box display="flex" flexDirection="column" width="70%" maxWidth="1100px" height="80vh" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)" position="relative">
                 {loading && (
-                <Box
-                display="flex"
-                flexDirection="column"
-                justifyContent="center"
-                alignItems="center"
-                position="absolute"
-                top="0"
-                left="0"
-                width="100%"
-                height="100%"
-                bgcolor="rgba(0, 0, 0, 0.6)"
-                zIndex="10"
-            >
-                <CircularProgress color="secondary" size={80} />
-                <Typography variant="h6" color="white" mt={2}>
-                    Diğer Kullanıcı Bağlanıyor...
-                </Typography>
-            </Box>
-            )}
+                    <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
+                        <CircularProgress color="secondary" size={80} />
+                        <Typography variant="h6" color="white" mt={2}>Diğer Kullanıcı Bağlanıyor...</Typography>
+                    </Box>
+                )}
                     <Box width="100%" height="100%" position="relative" borderRadius="10px" overflow="hidden">
                         {otherUsers.map(userId => (
                             <video key={userId} ref={userVideos.current[userId]} playsInline autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -307,25 +332,11 @@ const VideoChat = () => {
                     </Box>
                     <Box position="absolute" bottom="10px" right="10px" width="250px" height="175px" border="2px solid #fff" borderRadius="10px" overflow="hidden" bgcolor="#000">
                     {myLoading && (
-                <Box
-                display="flex"
-                flexDirection="column"
-                justifyContent="center"
-                alignItems="center"
-                position="absolute"
-                top="0"
-                left="0"
-                width="100%"
-                height="100%"
-                bgcolor="rgba(0, 0, 0, 0.6)"
-                zIndex="10"
-            >
-                <CircularProgress color="secondary" size={60} />
-                <Typography variant="h6" color="white" mt={2}>
-                    Bağlanıyor...
-                </Typography>
-                            </Box>
-            )}
+                        <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" position="absolute" top="0" left="0" width="100%" height="100%" bgcolor="rgba(0, 0, 0, 0.6)" zIndex="10">
+                            <CircularProgress color="secondary" size={60} />
+                            <Typography variant="h6" color="white" mt={2}>Bağlanıyor...</Typography>
+                        </Box>
+                    )}
                         {stream && cameraEnabled ? (
                             <>
                                 <video ref={myVideo} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -335,16 +346,41 @@ const VideoChat = () => {
                             <NoCameraIcon style={{ fontSize: 40, color: '#fff', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
                         )}
                     </Box>
-                    <Box position="absolute" bottom="10px" left="50%" transform="translateX(-50%)" display="flex" gap="15px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
+                    <Box position="absolute" bottom="10px" left="30%" transform="translateX(-50%)" display="flex" gap="10px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
                         <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
                             {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
                         </IconButton>
                         <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
                             {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
                         </IconButton>
+                        <IconButton onClick={toggleEmojiPicker} style={{ color: 'white' }}>
+                            <FiSmile />
+                        </IconButton>
+                        <IconButton onClick={isScreenSharing ? stopScreenShare : startScreenShare} style={{ color: 'white' }}>
+                            {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+                        </IconButton>
                     </Box>
+                    {showEmojiPicker && (
+                        <Box position="absolute" bottom="60px" left="50%" transform="translateX(-50%)" bgcolor="#444" borderRadius="8px" p={1} display="flex" gap="5px">
+                            <span onClick={() => sendEmoji('😊')}>😊</span>
+                            <span onClick={() => sendEmoji('😂')}>😂</span>
+                            <span onClick={() => sendEmoji('😍')}>😍</span>
+                            <span onClick={() => sendEmoji('👍')}>👍</span>
+                        </Box>
+                    )}
+                    {selectedEmoji && (
+                        <motion.div
+                            className="emoji-animation"
+                            initial={{ opacity: 0, scale: 0.5 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.5 }}
+                            transition={{ duration: 0.5 }}
+                            style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '48px', pointerEvents: 'none' }}
+                        >
+                            {selectedEmoji}
+                        </motion.div>
+                    )}
                 </Box>
-                {/* Sohbet Bölümü */}
                 <Box width="30%" bgcolor="#222" borderRadius="10px" p={2} boxShadow="0px 4px 10px rgba(0,0,0,0.5)">
                     <Typography variant="h6" color="white" mb={2}>Live Chat</Typography>
                     <List style={{ height: '70%', overflowY: 'auto', color: 'white' }}>
@@ -354,13 +390,13 @@ const VideoChat = () => {
                             </ListItem>
                         ))}
                     </List>
-                    <Box display="flex" mt={2}>
+                    <Box display="flex" mt={10}>
                         <TextField
                             variant="outlined"
                             placeholder="Type a message..."
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
-                            onKeyPress={handleKeyPress} // Enter tuşu için olay ekleyin
+                            onKeyPress={handleKeyPress}
                             fullWidth
                             inputProps={{ style: { color: 'white' } }}
                             sx={{ bgcolor: '#444', mr: 1 }}
