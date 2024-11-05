@@ -125,9 +125,15 @@ const VideoChat = () => {
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-                if (isScreenSharing && screenStream) {
+                if (isScreenSharing && screenStream && screenStream.getVideoTracks().length > 0) {
                     // Ekran paylaşımı yapılan ekranı sol tarafta büyük göster
-                    ctx.drawImage(screenStream.getVideoTracks()[0], 0, 0, canvas.width * 0.75, canvas.height);
+                    const screenTrack = screenStream.getVideoTracks()[0];
+                    if (screenTrack.readyState === 'live') {
+                        const screenVideo = document.createElement('video');
+                        screenVideo.srcObject = screenStream;
+                        screenVideo.play();
+                        ctx.drawImage(screenVideo, 0, 0, canvas.width * 0.75, canvas.height);
+                    }
     
                     // Sağ tarafta kamera görüntüleri için alan ayarla
                     let cameraX = canvas.width * 0.78;
@@ -235,8 +241,7 @@ const VideoChat = () => {
             setIsRecording(true);
         }
     };
-    
-    
+
 
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
