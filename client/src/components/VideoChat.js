@@ -39,6 +39,7 @@ const VideoChat = () => {
     const myVideo = useRef();
     const userVideos = useRef({});
     const peersRef = useRef({});
+    const canvasRef = useRef(null); // Canvas referansı
 
     const startVideoStream = async () => {
         try {
@@ -90,10 +91,10 @@ const VideoChat = () => {
         setScreenStream(null);
     };
 
-    const startRecording = async () => {
-        try {
-            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            mediaRecorderRef.current = new MediaRecorder(screenStream, { mimeType: 'video/webm' });
+
+    const startRecording = () => {
+        if (stream) {
+            mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
             
             mediaRecorderRef.current.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -109,10 +110,59 @@ const VideoChat = () => {
 
             mediaRecorderRef.current.start();
             setIsRecording(true);
-        } catch (error) {
-            console.error("Ekran kaydı başlatılamadı:", error);
         }
     };
+
+    const startCombinedRecording = () => {
+        if (myVideo.current && (otherUsers.length === 0 || userVideos.current[otherUsers[0]])) {
+            // Canvas oluşturma ve boyut ayarları
+            const canvas = document.createElement("canvas");
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext("2d");
+            
+            // İki video akışını sırayla canvas'a çizen fonksiyon
+            const draw = () => {
+                // Arka planı siyah yap
+                ctx.fillStyle = "black";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+                // Kendi video akışınızı sol tarafa çizme
+                if (stream && myVideo.current && myVideo.current.srcObject) {
+                    ctx.drawImage(myVideo.current, 0, 0, canvas.width / 2, canvas.height);
+                }
+    
+                // Diğer kullanıcının video akışını sağ tarafa çizme
+                if (otherUsers.length > 0 && userVideos.current[otherUsers[0]] && userVideos.current[otherUsers[0]].current.srcObject) {
+                    ctx.drawImage(userVideos.current[otherUsers[0]].current, canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                }
+                
+                requestAnimationFrame(draw); // Sürekli tekrar çizim
+            };
+            
+            draw(); // Çizim başlatma
+    
+            // Canvas'tan MediaRecorder oluşturma
+            const combinedStream = canvas.captureStream();
+            mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+            
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.current.push(event.data);
+                }
+            };
+    
+            mediaRecorderRef.current.onstop = () => {
+                const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
+                recordedChunks.current = []; // Kayıt parçalarını sıfırla
+                downloadRecording(blob); // Kullanıcıya kaydetme seçeneği sun
+            };
+    
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+        }
+    };
+    
 
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
@@ -126,7 +176,7 @@ const VideoChat = () => {
         const a = document.createElement("a");
         a.style.display = "none";
         a.href = url;
-        a.download = "screen-recording.webm"; // Kaydedilecek dosya adı
+        a.download = "video-call-recording.webm"; // Kaydedilecek dosya adı
         document.body.appendChild(a);
         a.click();
         URL.revokeObjectURL(url);
@@ -422,7 +472,7 @@ const VideoChat = () => {
                         <IconButton onClick={toggleChat} style={{ color: 'white' }}>
                             <ChatIcon />
                         </IconButton>
-                        <IconButton onClick={isRecording ? stopRecording : startRecording} style={{ color: 'white' }}>
+                        <IconButton onClick={isRecording ? stopRecording : startCombinedRecording} style={{ color: 'white' }}>
                             {isRecording ? <StopScreenShareIcon /> : <VideocamIcon />}
                         </IconButton>
                     </Box>
