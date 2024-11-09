@@ -119,16 +119,18 @@ const VideoChat = () => {
     };
 
     const startCombinedRecording = () => {
+        if (isRecording) return; // Kayıt yapılıyorsa tekrar başlatma
+    
         const canvas = document.createElement("canvas");
         canvas.width = 1280;
         canvas.height = 720;
         const ctx = canvas.getContext("2d");
     
-        // Ekran paylaşımı görüntüsü için bir video elementi oluşturuyoruz
-        const screenVideo = document.createElement('video');
+        // Ekran paylaşımı akışı için video elementi oluştur
+        const screenVideo = document.createElement("video");
         screenVideo.srcObject = screenStream;
-        
-        // Ekran paylaşımı akışının başlamasını beklemek için bir fonksiyon tanımlıyoruz
+    
+        // Ekran paylaşımı başlat
         const startScreenVideo = async () => {
             try {
                 await screenVideo.play();
@@ -137,9 +139,7 @@ const VideoChat = () => {
             }
         };
     
-        // Şık ve modern çerçeve için yuvarlak köşeli, gölgeli ve degrade dolgu
         const drawRoundedRect = (x, y, width, height, radius, color = "black", isPlaceholder = false) => {
-            // Degrade arka plan
             const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
             gradient.addColorStop(0, isPlaceholder ? "#333" : "#f1f1f1");
             gradient.addColorStop(1, isPlaceholder ? "#666" : "#e0e0e0");
@@ -152,7 +152,6 @@ const VideoChat = () => {
             ctx.shadowOffsetX = 5;
             ctx.shadowOffsetY = 5;
     
-            // Yuvarlak köşeli çerçeve çizimi
             ctx.beginPath();
             ctx.moveTo(x + radius, y);
             ctx.lineTo(x + width - radius, y);
@@ -167,9 +166,8 @@ const VideoChat = () => {
     
             ctx.fill();
             ctx.stroke();
-            ctx.shadowColor = "transparent"; // Sadece çerçeveye gölge
+            ctx.shadowColor = "transparent";
     
-            // Eğer placeholder ise "USER" yazısını ortalayarak ekleriz
             if (isPlaceholder) {
                 ctx.fillStyle = "white";
                 ctx.font = "bold 24px Arial";
@@ -179,21 +177,15 @@ const VideoChat = () => {
             }
         };
     
-        // Canvas çizim işlemi
         const draw = () => {
-            // Arka planı beyaz yap
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-            // Ekran paylaşımı varsa sol tarafta büyük bir çerçeveye çizeriz
             if (isScreenSharing && screenStream && screenStream.getVideoTracks().length > 0) {
                 startScreenVideo();
-    
-                // Yuvarlatılmış çerçeveyle ekran paylaşımı
                 drawRoundedRect(10, 10, canvas.width * 0.75 - 10, canvas.height - 20, 15);
                 ctx.drawImage(screenVideo, 10, 10, canvas.width * 0.75 - 10, canvas.height - 20);
     
-                // Sağ tarafa kullanıcı kameralarını yerleştiriyoruz
                 let cameraX = canvas.width * 0.78;
                 let cameraY = 20;
                 const cameraWidth = canvas.width * 0.2;
@@ -217,8 +209,7 @@ const VideoChat = () => {
                     cameraY += cameraHeight + 15;
                 });
             } else {
-                // Ekran paylaşımı yoksa tüm kullanıcıları ızgara düzeninde yerleştiririz
-                const totalUsers = otherUsers.length + 1; // Kendi videomuz + diğer kullanıcılar
+                const totalUsers = otherUsers.length + 1;
                 const columns = Math.ceil(Math.sqrt(totalUsers));
                 const rows = Math.ceil(totalUsers / columns);
                 const boxWidth = canvas.width / columns - 10;
@@ -227,7 +218,6 @@ const VideoChat = () => {
                 let x = 5;
                 let y = 5;
     
-                // Kendi kameramızı ekleriz
                 if (myVideo.current && myVideo.current.srcObject) {
                     drawRoundedRect(x, y, boxWidth, boxHeight, 10);
                     ctx.drawImage(myVideo.current, x, y, boxWidth, boxHeight);
@@ -253,11 +243,10 @@ const VideoChat = () => {
             }
         };
     
-        // setInterval ile çizim işlemi başlatılıyor, her 100 ms'de bir çalışacak
         const drawInterval = setInterval(draw, 100);
     
         const combinedStream = canvas.captureStream();
-        mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+        mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: "video/webm" });
     
         mediaRecorderRef.current.ondataavailable = (event) => {
             if (event.data.size > 0) {
@@ -266,18 +255,17 @@ const VideoChat = () => {
         };
     
         mediaRecorderRef.current.onstop = () => {
-            clearInterval(drawInterval); // Kayıt durduğunda çizim döngüsünü durdur
-            const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
+            clearInterval(drawInterval);
+            const blob = new Blob(recordedChunks.current, { type: "video/webm" });
             recordedChunks.current = [];
             downloadRecording(blob);
         };
     
         mediaRecorderRef.current.start();
         setIsRecording(true);
-
+    
         socket.emit("recording-status", { isRecording: true });
     };
-    
     
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
