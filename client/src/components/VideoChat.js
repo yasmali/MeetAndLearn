@@ -113,6 +113,8 @@ const VideoChat = () => {
 
             mediaRecorderRef.current.start();
             setIsRecording(true);
+
+            socket.emit("recording-status", { isRecording: true });
         }
     };
 
@@ -272,6 +274,8 @@ const VideoChat = () => {
     
         mediaRecorderRef.current.start();
         setIsRecording(true);
+
+        socket.emit("recording-status", { isRecording: true });
     };
     
     
@@ -279,6 +283,8 @@ const VideoChat = () => {
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
+
+            socket.emit("recording-status", { isRecording: false });
         }
     };
 
@@ -292,6 +298,19 @@ const VideoChat = () => {
         a.click();
         URL.revokeObjectURL(url);
     };
+
+    useEffect(() => {
+        // Diğer kullanıcılar video kaydını başlattığında veya durdurduğunda güncelleme al
+        socket.on("recording-status", ({ isRecording }) => {
+            setIsRecording(isRecording);
+            const message = isRecording ? "Video kaydı başlatıldı" : "Video kaydı durduruldu";
+            alert(message); // Tüm kullanıcılara bildirim göster
+        });
+
+        return () => {
+            socket.off("recording-status");
+        };
+    }, []);
 
     useEffect(() => {
         if (stream && myVideo.current) {

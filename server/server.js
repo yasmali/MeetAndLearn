@@ -68,6 +68,10 @@ io.on('connection', (socket) => {
             io.to(roomId).emit("chat-message", { message, sender });
         });
 
+        socket.on("recording-status", ({ isRecording }) => {
+            socket.to(roomId).emit("recording-status", { isRecording });
+        });
+
         socket.on('disconnect', () => {
             console.log(`${socket.id} disconnected!`);
             socket.to(roomId).emit('user-disconnected', { socketId: socket.id });
