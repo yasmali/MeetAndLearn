@@ -14,6 +14,9 @@ import { FiSmile } from 'react-icons/fi';
 import { motion } from 'framer-motion'; // Animasyon için
 import socket from '../socket.js';
 import '../assets/VideoChat.css';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'; // Kırmızı kayıt ikonu
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'; // Kayıt yokken içi boş daire ikon
+import Tooltip from '@mui/material/Tooltip'
 
 const VideoChat = () => {
     const { roomId } = useParams();
@@ -114,135 +117,164 @@ const VideoChat = () => {
     };
 
     const startCombinedRecording = () => {
-        if (myVideo.current) {
-            const canvas = document.createElement("canvas");
-            canvas.width = 1280;
-            canvas.height = 720;
-            const ctx = canvas.getContext("2d");
+        const canvas = document.createElement("canvas");
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext("2d");
     
-            const draw = () => {
-                // Arka planı siyah yap
-                ctx.fillStyle = "black";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Ekran paylaşımı görüntüsü için bir video elementi oluşturuyoruz
+        const screenVideo = document.createElement('video');
+        screenVideo.srcObject = screenStream;
+        
+        // Ekran paylaşımı akışının başlamasını beklemek için bir fonksiyon tanımlıyoruz
+        const startScreenVideo = async () => {
+            try {
+                await screenVideo.play();
+            } catch (error) {
+                console.error("Ekran paylaşımı başlatılamadı:", error);
+            }
+        };
     
-                if (isScreenSharing && screenStream && screenStream.getVideoTracks().length > 0) {
-                    // Ekran paylaşımı yapılan ekranı sol tarafta büyük göster
-                    const screenTrack = screenStream.getVideoTracks()[0];
-                    if (screenTrack.readyState === 'live') {
-                        const screenVideo = document.createElement('video');
-                        screenVideo.srcObject = screenStream;
-                        screenVideo.play();
-                        ctx.drawImage(screenVideo, 0, 0, canvas.width * 0.75, canvas.height);
-                    }
+        // Şık ve modern çerçeve için yuvarlak köşeli, gölgeli ve degrade dolgu
+        const drawRoundedRect = (x, y, width, height, radius, color = "black", isPlaceholder = false) => {
+            // Degrade arka plan
+            const gradient = ctx.createLinearGradient(x, y, x + width, y + height);
+            gradient.addColorStop(0, isPlaceholder ? "#333" : "#f1f1f1");
+            gradient.addColorStop(1, isPlaceholder ? "#666" : "#e0e0e0");
     
-                    // Sağ tarafta kamera görüntüleri için alan ayarla
-                    let cameraX = canvas.width * 0.78;
-                    let cameraY = 10;
-                    const cameraWidth = canvas.width * 0.2;
-                    const cameraHeight = canvas.height * 0.2;
+            ctx.fillStyle = gradient;
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = color;
+            ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
     
-                    // Ekranı paylaşan kullanıcının kamera görüntüsünü en üstte göster
-                    if (myVideo.current.srcObject) {
-                        ctx.drawImage(myVideo.current, cameraX, cameraY, cameraWidth, cameraHeight);
-                        cameraY += cameraHeight + 10; // Araya boşluk bırak
-                    }
+            // Yuvarlak köşeli çerçeve çizimi
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
     
-                    // Diğer kullanıcıların kamera görüntülerini ekle
-                    otherUsers.forEach((userId) => {
-                        const videoRef = userVideos.current[userId];
+            ctx.fill();
+            ctx.stroke();
+            ctx.shadowColor = "transparent"; // Sadece çerçeveye gölge
     
-                        if (videoRef && videoRef.current && videoRef.current.srcObject) {
-                            ctx.drawImage(videoRef.current, cameraX, cameraY, cameraWidth, cameraHeight);
-                        } else {
-                            // Kamera kapalıysa siyah çerçeve ve USER yazısı göster
-                            ctx.fillStyle = "black";
-                            ctx.fillRect(cameraX, cameraY, cameraWidth, cameraHeight);
-                            ctx.fillStyle = "white";
-                            ctx.font = "20px Arial";
-                            ctx.textAlign = "center";
-                            ctx.textBaseline = "middle";
-                            ctx.fillText("USER", cameraX + cameraWidth / 2, cameraY + cameraHeight / 2);
-                        }
-                        cameraY += cameraHeight + 10; // Her bir kamera için araya boşluk bırak
-                    });
+            // Eğer placeholder ise "USER" yazısını ortalayarak ekleriz
+            if (isPlaceholder) {
+                ctx.fillStyle = "white";
+                ctx.font = "bold 24px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("USER", x + width / 2, y + height / 2);
+            }
+        };
+    
+        // Canvas çizim işlemi
+        const draw = () => {
+            // Arka planı beyaz yap
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+            // Ekran paylaşımı varsa sol tarafta büyük bir çerçeveye çizeriz
+            if (isScreenSharing && screenStream && screenStream.getVideoTracks().length > 0) {
+                startScreenVideo();
+    
+                // Yuvarlatılmış çerçeveyle ekran paylaşımı
+                drawRoundedRect(10, 10, canvas.width * 0.75 - 10, canvas.height - 20, 15);
+                ctx.drawImage(screenVideo, 10, 10, canvas.width * 0.75 - 10, canvas.height - 20);
+    
+                // Sağ tarafa kullanıcı kameralarını yerleştiriyoruz
+                let cameraX = canvas.width * 0.78;
+                let cameraY = 20;
+                const cameraWidth = canvas.width * 0.2;
+                const cameraHeight = canvas.height * 0.2;
+    
+                if (myVideo.current && myVideo.current.srcObject) {
+                    drawRoundedRect(cameraX, cameraY, cameraWidth, cameraHeight, 10);
+                    ctx.drawImage(myVideo.current, cameraX, cameraY, cameraWidth, cameraHeight);
                 } else {
-                    // Ekran paylaşımı yoksa, tüm kullanıcıları sıralı bir şekilde yerleştir
-                    const columns = Math.ceil(Math.sqrt(otherUsers.length + 1)); // Kolon sayısı, kendi görüntümüz de dahil
-                    const rows = Math.ceil((otherUsers.length + 1) / columns); // Satır sayısı
-                    const boxWidth = canvas.width / columns - 10;
-                    const boxHeight = canvas.height / rows - 10;
+                    drawRoundedRect(cameraX, cameraY, cameraWidth, cameraHeight, 10, "black", true);
+                }
     
-                    let x = 5;
-                    let y = 5;
+                cameraY += cameraHeight + 15;
+                otherUsers.forEach((userId) => {
+                    const videoRef = userVideos.current[userId];
+                    drawRoundedRect(cameraX, cameraY, cameraWidth, cameraHeight, 10, "black", !videoRef || !videoRef.current || !videoRef.current.srcObject);
     
-                    // Kendi video görüntümüz
-                    if (myVideo.current.srcObject) {
-                        ctx.drawImage(myVideo.current, x, y, boxWidth, boxHeight);
-                    } else {
-                        ctx.fillStyle = "black";
-                        ctx.fillRect(x, y, boxWidth, boxHeight);
-                        ctx.fillStyle = "white";
-                        ctx.font = "20px Arial";
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText("USER", x + boxWidth / 2, y + boxHeight / 2);
+                    if (videoRef && videoRef.current && videoRef.current.srcObject) {
+                        ctx.drawImage(videoRef.current, cameraX, cameraY, cameraWidth, cameraHeight);
+                    }
+                    cameraY += cameraHeight + 15;
+                });
+            } else {
+                // Ekran paylaşımı yoksa tüm kullanıcıları ızgara düzeninde yerleştiririz
+                const totalUsers = otherUsers.length + 1; // Kendi videomuz + diğer kullanıcılar
+                const columns = Math.ceil(Math.sqrt(totalUsers));
+                const rows = Math.ceil(totalUsers / columns);
+                const boxWidth = canvas.width / columns - 10;
+                const boxHeight = canvas.height / rows - 10;
+    
+                let x = 5;
+                let y = 5;
+    
+                // Kendi kameramızı ekleriz
+                if (myVideo.current && myVideo.current.srcObject) {
+                    drawRoundedRect(x, y, boxWidth, boxHeight, 10);
+                    ctx.drawImage(myVideo.current, x, y, boxWidth, boxHeight);
+                } else {
+                    drawRoundedRect(x, y, boxWidth, boxHeight, 10, "black", true);
+                }
+    
+                x += boxWidth + 10;
+                otherUsers.forEach((userId, index) => {
+                    if (x + boxWidth > canvas.width) {
+                        x = 5;
+                        y += boxHeight + 10;
                     }
     
-                    x += boxWidth + 10; // Bir sonraki kutucuk için konumu ayarla
+                    const videoRef = userVideos.current[userId];
+                    drawRoundedRect(x, y, boxWidth, boxHeight, 10, "black", !videoRef || !videoRef.current || !videoRef.current.srcObject);
     
-                    // Diğer kullanıcıların görüntüleri
-                    otherUsers.forEach((userId, index) => {
-                        if (x + boxWidth > canvas.width) {
-                            x = 5; // Yeni satıra geç
-                            y += boxHeight + 10;
-                        }
+                    if (videoRef && videoRef.current && videoRef.current.srcObject) {
+                        ctx.drawImage(videoRef.current, x, y, boxWidth, boxHeight);
+                    }
+                    x += boxWidth + 10;
+                });
+            }
+        };
     
-                        const videoRef = userVideos.current[userId];
+        // setInterval ile çizim işlemi başlatılıyor, her 100 ms'de bir çalışacak
+        const drawInterval = setInterval(draw, 100);
     
-                        if (videoRef && videoRef.current && videoRef.current.srcObject) {
-                            ctx.drawImage(videoRef.current, x, y, boxWidth, boxHeight);
-                        } else {
-                            // Kamera kapalıysa siyah çerçeve ve USER yazısı göster
-                            ctx.fillStyle = "black";
-                            ctx.fillRect(x, y, boxWidth, boxHeight);
-                            ctx.fillStyle = "white";
-                            ctx.font = "20px Arial";
-                            ctx.textAlign = "center";
-                            ctx.textBaseline = "middle";
-                            ctx.fillText("USER", x + boxWidth / 2, y + boxHeight / 2);
-                        }
+        const combinedStream = canvas.captureStream();
+        mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
     
-                        x += boxWidth + 10; // Sonraki pozisyona geç
-                    });
-                }
+        mediaRecorderRef.current.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunks.current.push(event.data);
+            }
+        };
     
-                requestAnimationFrame(draw); // Sürekli tekrar çizim
-            };
+        mediaRecorderRef.current.onstop = () => {
+            clearInterval(drawInterval); // Kayıt durduğunda çizim döngüsünü durdur
+            const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
+            recordedChunks.current = [];
+            downloadRecording(blob);
+        };
     
-            draw(); // Çizim başlatma
-    
-            // Canvas'tan MediaRecorder oluşturma
-            const combinedStream = canvas.captureStream();
-            mediaRecorderRef.current = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
-    
-            mediaRecorderRef.current.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    recordedChunks.current.push(event.data);
-                }
-            };
-    
-            mediaRecorderRef.current.onstop = () => {
-                const blob = new Blob(recordedChunks.current, { type: 'video/webm' });
-                recordedChunks.current = []; // Kayıt parçalarını sıfırla
-                downloadRecording(blob); // Kullanıcıya kaydetme seçeneği sun
-            };
-    
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-        }
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
     };
-
-
+    
+    
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
             mediaRecorderRef.current.stop();
@@ -536,25 +568,46 @@ const VideoChat = () => {
                         )}
                     </Box>
                     <Box position="absolute" bottom="10px" left="35%" transform="translateX(-50%)" display="flex" gap="10px" bgcolor="rgba(0, 0, 0, 0.6)" borderRadius="8px" p={2}>
-                        <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
-                            {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                        </IconButton>
-                        <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
-                            {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
-                        </IconButton>
-                        <IconButton onClick={toggleEmojiPicker} style={{ color: 'white' }}>
-                            <FiSmile />
-                        </IconButton>
-                        <IconButton onClick={isScreenSharing ? stopScreenShare : startScreenShare} style={{ color: 'white' }}>
-                            {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
-                        </IconButton>
-                        <IconButton onClick={toggleChat} style={{ color: 'white' }}>
-                            <ChatIcon />
-                        </IconButton>
-                        <IconButton onClick={isRecording ? stopRecording : startCombinedRecording} style={{ color: 'white' }}>
-                            {isRecording ? <StopScreenShareIcon /> : <VideocamIcon />}
-                        </IconButton>
-                    </Box>
+    <Tooltip title={cameraEnabled ? "Kamerayı kapat" : "Kamerayı aç"}>
+        <IconButton onClick={toggleCamera} style={{ color: 'white' }}>
+            {cameraEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+        </IconButton>
+    </Tooltip>
+    
+    <Tooltip title={microphoneEnabled ? "Mikrofonu kapat" : "Mikrofonu aç"}>
+        <IconButton onClick={toggleMicrophone} style={{ color: 'white' }}>
+            {microphoneEnabled ? <MicIcon /> : <MicOffIcon />}
+        </IconButton>
+    </Tooltip>
+    
+    <Tooltip title="Emoji seç">
+        <IconButton onClick={toggleEmojiPicker} style={{ color: 'white' }}>
+            <FiSmile />
+        </IconButton>
+    </Tooltip>
+    
+    <Tooltip title={isScreenSharing ? "Ekran paylaşımını durdur" : "Ekran paylaşımını başlat"}>
+        <IconButton onClick={isScreenSharing ? stopScreenShare : startScreenShare} style={{ color: 'white' }}>
+            {isScreenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+        </IconButton>
+    </Tooltip>
+    
+    <Tooltip title="Sohbeti aç">
+        <IconButton onClick={toggleChat} style={{ color: 'white' }}>
+            <ChatIcon />
+        </IconButton>
+    </Tooltip>
+    
+    <Tooltip title={isRecording ? "Kaydı durdur" : "Kaydı başlat"}>
+        <IconButton onClick={isRecording ? stopRecording : startCombinedRecording} style={{ color: isRecording ? 'red' : 'white' }}>
+            {isRecording ? (
+                <FiberManualRecordIcon style={{ fontSize: 28 }} />
+            ) : (
+                <RadioButtonUncheckedIcon style={{ fontSize: 28 }} />
+            )}
+        </IconButton>
+    </Tooltip>
+</Box>
                     {showEmojiPicker && (
                         <Box position="absolute" bottom="60px" left="40%" transform="translateX(-50%)" bgcolor="#444" borderRadius="8px" p={1} display="flex" gap="5px">
                             <span onClick={() => sendEmoji('😊')}>😊</span>
